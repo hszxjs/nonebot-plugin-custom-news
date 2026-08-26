@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<style>
+  @font-face {
+    font-family: "HarmonyOS Sans SC";
+    src: url("{{ font_regular }}");
+    font-weight: 400;
+  }
+  @font-face {
+    font-family: "HarmonyOS Sans SC";
+    src: url("{{ font_medium }}");
+    font-weight: 500;
+  }
+  @font-face {
+    font-family: "HarmonyOS Sans SC";
+    src: url("{{ font_bold }}");
+    font-weight: 700;
+  }
+
+  :root {
+    --primary: {{ palette.primary }};
+    --accent: {{ palette.accent }};
+    --text: {{ palette.text }};
+    --subtext: {{ palette.subtext }};
+    --card-bg: {{ palette.card_bg }};
+    --card-border: {{ palette.card_border }};
+    --rank1: {{ palette.rank1 }};
+    --rank2: {{ palette.rank2 }};
+    --rank3: {{ palette.rank3 }};
+    --rank-n: {{ palette.rank_n }};
+    --hot: {{ palette.hot }};
+    --radius: {{ border_radius }}px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body { width: {{ width }}px; }
+
+  body {
+    font-family: "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei",
+                 "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    color: var(--text);
+  }
+
+  .page {
+    position: relative;
+    width: {{ width }}px;
+    min-height: 100vh;
+    background: url("{{ bg_url }}") center / cover no-repeat, #e8ecf2;
+    font-size: calc(26px * {{ scale }});
+  }
+
+  {% if bg_blur > 0 %}
+  .page::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    backdrop-filter: blur({{ bg_blur }}px);
+    -webkit-backdrop-filter: blur({{ bg_blur }}px);
+  }
+  {% endif %}
+
+  .bg-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      180deg,
+      rgba({{ overlay_rgb }}, {{ overlay_opacity }}) 0%,
+      rgba({{ overlay_rgb }}, {{ overlay_opacity | round(2) * 0.55 }}) 45%,
+      rgba({{ overlay_rgb }}, {{ overlay_opacity }}) 100%
+    );
+  }
+
+  .content {
+    position: relative;
+    padding: calc(56px * {{ scale }}) calc(52px * {{ scale }}) calc(44px * {{ scale }});
+  }
+
+  /* ---------------- Header ---------------- */
+  .header { text-align: center; margin-bottom: calc(44px * {{ scale }}); }
+
+  .date-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 28px;
+    border-radius: 999px;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: var(--subtext);
+    font-size: calc(24px * {{ scale }});
+    font-weight: 500;
+    letter-spacing: 2px;
+  }
+  .date-pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); }
+
+  .main-title {
+    margin-top: calc(26px * {{ scale }});
+    font-size: calc(66px * {{ scale }});
+    font-weight: {{ title_weight }};
+    letter-spacing: 4px;
+    background: linear-gradient(120deg, var(--primary) 10%, var(--accent) 90%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .sub-title {
+    margin-top: calc(10px * {{ scale }});
+    color: var(--subtext);
+    font-size: calc(24px * {{ scale }});
+    font-weight: 500;
+    letter-spacing: 8px;
+  }
+
+  .header-divider {
+    margin: calc(26px * {{ scale }}) auto 0;
+    width: 280px;
+    height: 5px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, transparent, var(--primary), var(--accent), transparent);
+    opacity: 0.85;
+  }
+
+  /* ---------------- Cards ---------------- */
+  .cards {
+    display: grid;
+    grid-template-columns: repeat({{ columns }}, 1fr);
+    gap: calc(26px * {{ scale }});
+  }
+
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius);
+    backdrop-filter: blur({{ glass_blur }}px) saturate({{ glass_sat }});
+    -webkit-backdrop-filter: blur({{ glass_blur }}px) saturate({{ glass_sat }});
+    padding: calc(30px * {{ scale }}) calc(28px * {{ scale }});
+    {% if shadow_level == 1 %}
+    box-shadow: 4px 6px 16px rgba(0, 0, 0, 0.10);
+    {% elif shadow_level == 2 %}
+    box-shadow: 10px 16px 36px rgba(0, 0, 0, 0.16);
+    {% elif shadow_level >= 3 %}
+    box-shadow: 16px 26px 52px rgba(0, 0, 0, 0.28);
+    {% endif %}
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* 45° 高光：左上向右下的光泽渐变，玻璃质感 */
+  .card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.30) 0%,
+      rgba(255, 255, 255, 0.08) 28%,
+      rgba(255, 255, 255, 0) 48%
+    );
+  }
+
+  .card-head { display: flex; align-items: center; gap: 14px; }
+
+  .card-emoji {
+    width: calc(52px * {{ scale }});
+    height: calc(52px * {{ scale }});
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: calc(30px * {{ scale }});
+    border-radius: calc(var(--radius) * 0.5);
+    background: color-mix(in srgb, var(--card-color) 16%, transparent);
+    border: 1px solid color-mix(in srgb, var(--card-color) 30%, transparent);
+  }
+
+  .card-name {
+    font-size: calc(30px * {{ scale }});
+    font-weight: 700;
+    color: var(--text);
+    flex: 1;
+    white-space: nowrap;
+  }
+
+  .card-stale-tag {
+    font-size: calc(19px * {{ scale }});
+    color: var(--subtext);
+    background: color-mix(in srgb, var(--subtext) 14%, transparent);
+    padding: 3px 12px;
+    border-radius: 999px;
+  }
+
+  .card-underline {
+    margin: calc(18px * {{ scale }}) 0 calc(20px * {{ scale }});
+    width: 100%;
+    height: 4px;
+    border-radius: 999px;
+    background: linear-gradient(
+      90deg,
+      var(--card-color) 0%,
+      color-mix(in srgb, var(--card-color) 40%, transparent) 60%,
+      transparent 100%
+    );
+    opacity: 0.9;
+  }
+
+  .items { display: flex; flex-direction: column; gap: calc(4px * {{ scale }}); }
+
+  /* 榜单行：斑马纹行底 + 圆角，标题两行换行（参考主流 bot 榜单卡排版） */
+  .item {
+    display: flex;
+    align-items: flex-start;
+    gap: 13px;
+    min-width: 0;
+    padding: calc(9px * {{ scale }}) calc(12px * {{ scale }});
+    border-radius: calc(14px * {{ scale }});
+  }
+  .item:nth-child(even) {
+    background: color-mix(in srgb, var(--text) 4.5%, transparent);
+  }
+
+  .rank {
+    flex: none;
+    width: calc(36px * {{ scale }});
+    height: calc(36px * {{ scale }});
+    border-radius: calc(10px * {{ scale }});
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: calc(21px * {{ scale }});
+    font-weight: 700;
+  }
+  .rank.r1 { background: var(--rank1); color: #fff; }
+  .rank.r2 { background: var(--rank2); color: #fff; }
+  .rank.r3 { background: var(--rank3); color: #fff; }
+  .rank.rn {
+    background: color-mix(in srgb, var(--subtext) 18%, transparent);
+    color: var(--rank-n);
+  }
+
+  .item-title {
+    flex: 1;
+    min-width: 0;
+    font-size: calc(25px * {{ scale }});
+    line-height: 1.42;
+    font-weight: 500;
+    color: var(--text);
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    text-align: justify;
+    overflow-wrap: break-word;
+  }
+
+  .item-hot {
+    flex: none;
+    margin-top: calc(4px * {{ scale }});
+    font-size: calc(21px * {{ scale }});
+    color: var(--hot);
+    font-weight: 500;
+  }
+
+  .card-empty {
+    color: var(--subtext);
+    font-size: calc(22px * {{ scale }});
+    text-align: center;
+    padding: 30px 0;
+  }
+
+  /* ---------------- Footer ---------------- */
+  .footer {
+    margin-top: calc(40px * {{ scale }});
+    text-align: center;
+    color: var(--subtext);
+    font-size: calc(20px * {{ scale }});
+    line-height: 1.7;
+    letter-spacing: 1px;
+  }
+  .footer .failed { opacity: 0.85; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="bg-overlay"></div>
+  <div class="content">
+
+    {% if header.show_date or header.title %}
+    <div class="header">
+      {% if header.show_date %}
+      <div class="date-pill">
+        <span class="dot"></span>
+        <span>{{ header.date_text }}</span>
+        <span class="dot" style="background: var(--accent);"></span>
+      </div>
+      {% endif %}
+      {% if header.title %}
+      <div class="main-title">{{ header.title }}</div>
+      {% endif %}
+      {% if header.subtitle %}
+      <div class="sub-title">{{ header.subtitle }}</div>
+      {% endif %}
+      <div class="header-divider"></div>
+    </div>
+    {% endif %}
+
+    <div class="cards">
+      {% for card in cards %}
+      <div class="card" style="--card-color: {{ card.color }};">
+        <div class="card-head">
+          <div class="card-emoji">{{ card.emoji }}</div>
+          <div class="card-name">{{ card.name }}</div>
+          {% if card.stale %}<span class="card-stale-tag">缓存</span>{% endif %}
+        </div>
+        <div class="card-underline"></div>
+        <div class="items">
+          {% for item in card.entries %}
+          <div class="item">
+            <div class="rank {{ item.rank_class }}">{{ item.rank }}</div>
+            <div class="item-title">{{ item.title }}</div>
+            {% if show_hot and item.hot_text %}
+            <div class="item-hot">{{ item.hot_text }}</div>
+            {% endif %}
+          </div>
+          {% else %}
+          <div class="card-empty">暂无数据</div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="footer">
+      {% if footer.custom_text %}<div>{{ footer.custom_text }}</div>{% endif %}
+      {% if failed_names %}
+      <div class="failed">未获取：{{ failed_names }}</div>
+      {% endif %}
+      <div>{{ footer.time_text }}{% if footer.show_credit %} · Powered by nonebot-plugin-custom-news{% endif %}</div>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>

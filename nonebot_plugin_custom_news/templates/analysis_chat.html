@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<style>
+  @font-face {
+    font-family: "HarmonyOS Sans SC";
+    src: url("{{ font_regular }}");
+    font-weight: 400;
+  }
+  @font-face {
+    font-family: "HarmonyOS Sans SC";
+    src: url("{{ font_medium }}");
+    font-weight: 500;
+  }
+  @font-face {
+    font-family: "HarmonyOS Sans SC";
+    src: url("{{ font_bold }}");
+    font-weight: 700;
+  }
+
+  :root {
+    --primary: {{ palette.primary }};
+    --accent: {{ palette.accent }};
+    --text: {{ palette.text }};
+    --subtext: {{ palette.subtext }};
+    --card-bg: {{ palette.card_bg }};
+    --card-border: {{ palette.card_border }};
+    --hot: {{ palette.hot }};
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: {{ width }}px; }
+  body {
+    font-family: "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei",
+                 "Segoe UI Emoji", "Apple Color Emoji", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    width: {{ width }}px;
+    min-height: 100vh;
+    background:
+      radial-gradient(900px 500px at 85% -5%, color-mix(in srgb, var(--primary) 16%, transparent), transparent 60%),
+      radial-gradient(700px 500px at -5% 30%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 55%),
+      linear-gradient(175deg, {{ page_bg_top }}, {{ page_bg_bottom }});
+    color: var(--text);
+    padding: 44px 40px 36px;
+    font-size: 24px;
+  }
+
+  /* ---------------- Header ---------------- */
+  .header { text-align: center; margin-bottom: 34px; }
+
+  .date-pill {
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 8px 24px; border-radius: 999px;
+    background: var(--card-bg); border: 1px solid var(--card-border);
+    backdrop-filter: blur(10px);
+    color: var(--subtext); font-size: 20px; letter-spacing: 2px;
+  }
+  .date-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--primary); }
+
+  .main-title {
+    margin-top: 18px; font-size: 52px; font-weight: 700; letter-spacing: 4px;
+    background: linear-gradient(120deg, var(--primary), var(--accent));
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .sub-title { margin-top: 8px; color: var(--subtext); font-size: 20px; letter-spacing: 6px; }
+  .header-divider {
+    margin: 20px auto 0; width: 200px; height: 4px; border-radius: 999px;
+    background: linear-gradient(90deg, transparent, var(--primary), var(--accent), transparent);
+  }
+
+  /* ---------------- 新闻区块 ---------------- */
+  .news-block { margin-bottom: 34px; }
+
+  .news-divider {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 18px;
+  }
+  .news-divider .line { flex: 1; height: 1px; background: var(--card-border); }
+  .news-divider .tag {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 18px; border-radius: 999px;
+    background: color-mix(in srgb, var(--primary) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
+    color: var(--text); font-size: 20px; font-weight: 700; white-space: nowrap;
+    max-width: 86%;
+  }
+  .news-divider .tag .src { color: var(--subtext); font-weight: 500; font-size: 18px; }
+  .news-divider .tag .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* 聊天气泡行 */
+  .row { display: flex; gap: 14px; margin-bottom: 16px; }
+  .row.self { flex-direction: row-reverse; }
+
+  .avatar {
+    flex: none; width: 52px; height: 52px; border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px;
+    background: linear-gradient(135deg,
+      color-mix(in srgb, var(--primary) 30%, transparent),
+      color-mix(in srgb, var(--accent) 30%, transparent));
+    border: 1px solid var(--card-border);
+  }
+  .avatar.bot { font-size: 24px; }
+
+  .bubble-col { display: flex; flex-direction: column; gap: 6px; max-width: 84%; }
+  .row.self .bubble-col { align-items: flex-end; }
+
+  .sender { color: var(--subtext); font-size: 17px; padding: 0 6px; }
+
+  .bubble {
+    position: relative;
+    padding: 16px 20px; border-radius: 18px;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    backdrop-filter: blur(12px);
+    box-shadow: 4px 6px 18px rgba(0, 0, 0, 0.10);
+    font-size: 22px; line-height: 1.55; text-align: justify;
+  }
+  .bubble::after { /* 45° 高光 */
+    content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+    background: linear-gradient(135deg, rgba(255,255,255,.22) 0%, rgba(255,255,255,.05) 30%, transparent 50%);
+  }
+
+  .bubble.greeting {
+    border-radius: 18px 18px 18px 6px;
+  }
+  .row.self .bubble { border-radius: 18px 18px 6px 18px; }
+
+  .bubble .label {
+    display: inline-flex; align-items: center; gap: 6px;
+    margin-bottom: 8px; padding: 2px 12px; border-radius: 999px;
+    font-size: 17px; font-weight: 700; letter-spacing: 1px;
+    background: color-mix(in srgb, var(--primary) 16%, transparent);
+    color: var(--primary);
+  }
+  .bubble .label.alt { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); }
+  .bubble ul { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .bubble ul li { padding-left: 20px; position: relative; }
+  .bubble ul li::before {
+    content: ""; position: absolute; left: 2px; top: 13px;
+    width: 8px; height: 8px; border-radius: 3px;
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+  }
+  .bubble.remark {
+    border-left: 4px solid var(--primary);
+    font-weight: 700;
+  }
+  .bubble .meta { margin-top: 10px; color: var(--subtext); font-size: 16px; }
+
+  /* ---------------- Footer ---------------- */
+  .footer {
+    margin-top: 10px; text-align: center;
+    color: var(--subtext); font-size: 17px; line-height: 1.7;
+  }
+  .footer .warn { opacity: .85; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="header">
+    <div class="date-pill">
+      <span class="dot"></span>
+      <span>{{ date_text }}</span>
+      <span class="dot" style="background: var(--accent);"></span>
+    </div>
+    <div class="main-title">今日深读</div>
+    <div class="sub-title">AI 新闻解析 · 基于原文</div>
+    <div class="header-divider"></div>
+  </div>
+
+  {% for news in news_list %}
+  <div class="news-block">
+
+    <div class="news-divider">
+      <span class="line"></span>
+      <span class="tag">{{ news.emoji }} {{ news.source }}<span class="src">·</span><span class="t">{{ news.title }}</span></span>
+      <span class="line"></span>
+    </div>
+
+    {% if news.ok %}
+    <div class="row">
+      <div class="avatar bot">🤖</div>
+      <div class="bubble-col">
+        <span class="sender">热点解读员</span>
+        <div class="bubble greeting">
+          <span class="label">📌 事件</span>{{ news.event }}
+          <div class="meta">原文 {{ news.article_chars }} 字 · 已完整阅读后解析</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row self">
+      <div class="avatar">🧑</div>
+      <div class="bubble-col">
+        <div class="bubble">具体是什么情况？</div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="avatar bot">🤖</div>
+      <div class="bubble-col">
+        <span class="sender">热点解读员</span>
+        <div class="bubble">
+          <span class="label">🧭 背景</span>{{ news.background }}
+        </div>
+        <div class="bubble">
+          <span class="label alt">🔍 要点</span>
+          <ul>
+            {% for p in news.points %}<li>{{ p }}</li>{% endfor %}
+          </ul>
+        </div>
+        <div class="bubble">
+          <span class="label">📊 影响</span>{{ news.impact }}
+        </div>
+        <div class="bubble remark">💬 {{ news.remark }}</div>
+      </div>
+    </div>
+    {% else %}
+    <div class="row">
+      <div class="avatar bot">🤖</div>
+      <div class="bubble-col">
+        <span class="sender">热点解读员</span>
+        <div class="bubble">这条的原文暂时没能读到（{{ news.error }}），跳过深读啦 🙈</div>
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
+  {% endfor %}
+
+  <div class="footer">
+    <div class="warn">⚠️ AI 生成内容仅供参考，请以官方报道为准</div>
+    <div>{{ model_text }} · nonebot-plugin-custom-news</div>
+  </div>
+</div>
+</body>
+</html>

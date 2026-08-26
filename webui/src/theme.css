@@ -1,0 +1,147 @@
+@import "tailwindcss";
+@import "@heroui/styles";
+
+/* HarmonyOS Sans SC 自托管字体 */
+@font-face {
+  font-family: "HarmonyOS Sans SC";
+  src: url("./assets/fonts/HarmonyOS_Sans_SC_Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "HarmonyOS Sans SC";
+  src: url("./assets/fonts/HarmonyOS_Sans_SC_Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: "HarmonyOS Sans SC";
+  src: url("./assets/fonts/HarmonyOS_Sans_SC_Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-display: swap;
+}
+
+/* ============================================================
+   品牌主题：深空紫（覆盖 HeroUI 深色主题变量，卡片/控件/光效一体化）
+   ============================================================ */
+html.dark {
+  --background: #0a0c14;
+  --foreground: #e8eaf4;
+  --surface: #11141d;
+  --surface-secondary: #171b26;
+  --surface-tertiary: #1d2230;
+  --surface-hover: #1d2230;
+  --overlay: #141824;
+  --overlay-foreground: #e8eaf4;
+  --muted: #8b93ab;
+  --accent: #7c8cf8;
+  --accent-foreground: #ffffff;
+  --accent-hover: #93a0ff;
+  --accent-soft: rgba(124, 140, 248, 0.14);
+  --accent-soft-hover: rgba(124, 140, 248, 0.22);
+  --success: #3ddc97;
+  --success-soft: rgba(61, 220, 151, 0.14);
+  --danger: #ff6b81;
+  --danger-soft: rgba(255, 107, 129, 0.14);
+  --warning: #ffb454;
+  --warning-soft: rgba(255, 180, 84, 0.14);
+  --border: rgba(255, 255, 255, 0.09);
+  --separator: rgba(255, 255, 255, 0.07);
+  --focus: #7c8cf8;
+}
+
+:root {
+  font-family: "HarmonyOS Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--foreground);
+  background-color: var(--background);
+  /* 深空光晕：靛蓝 + 紫 + 青 三点弥散，固定视口 */
+  background-image:
+    radial-gradient(1100px 700px at 85% -10%, rgba(124, 140, 248, 0.16), transparent 60%),
+    radial-gradient(900px 620px at -15% 20%, rgba(192, 132, 252, 0.10), transparent 55%),
+    radial-gradient(1000px 800px at 50% 120%, rgba(56, 224, 194, 0.07), transparent 60%);
+  background-attachment: fixed;
+}
+
+/* ============================================================
+   设计系统工具类
+   ============================================================ */
+
+/* 玻璃卡片 */
+.glass {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.018));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.glass-hover {
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s ease;
+}
+.glass-hover:hover {
+  border-color: rgba(124, 140, 248, 0.35);
+  box-shadow: 0 8px 36px rgba(124, 140, 248, 0.10);
+}
+
+/* 品牌渐变（按钮/滑块/头像块/侧边栏激活态） */
+.brand-gradient {
+  background-image: linear-gradient(135deg, #6366f1 0%, #8b5cf6 55%, #d946ef 130%);
+}
+.brand-glow {
+  box-shadow: 0 4px 20px rgba(139, 92, 246, 0.35);
+}
+
+/* 渐变文字（页面标题） */
+.text-gradient {
+  background-image: linear-gradient(120deg, #9aa7ff 0%, #c4b5fd 55%, #6ee7d7 110%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* 表单控件统一质感 */
+.field-input {
+  height: 2.5rem;
+  width: 100%;
+  min-width: 0;
+  border-radius: 0.8rem;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 0 0.8rem;
+  font-size: 0.875rem;
+  color: var(--foreground);
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+.field-input:focus {
+  border-color: rgba(124, 140, 248, 0.6);
+  box-shadow: 0 0 0 3px rgba(124, 140, 248, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+}
+.field-input::placeholder {
+  color: rgba(139, 147, 171, 0.6);
+}
+select.field-input option {
+  background: #141824;
+  color: var(--foreground);
+}
+
+/* 细滚动条 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(140, 140, 160, 0.3);
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(140, 140, 160, 0.5);
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}

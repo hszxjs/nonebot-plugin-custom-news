@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+/dist/
+/build/
+.venv*/
+
+# 测试环境（本地联调用，不入库）
+testenv/
+
+# Node（webui 源码的依赖；构建产物 dist 随插件包分发，需入库）
+webui/node_modules/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# 运行数据与日志
+*.log
+/webui/dist/
+.zcode/

@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/api.ts","./src/main.tsx","./src/types.ts","./src/ui.tsx","./src/components/colorfield.tsx","./src/components/digestmock.tsx","./src/pages/dashboard.tsx","./src/pages/login.tsx","./src/pages/musicaccounts.tsx","./src/pages/push.tsx","./src/pages/settings.tsx","./src/pages/sources.tsx","./src/pages/themeeditor.tsx"],"version":"5.9.3"}
