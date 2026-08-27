@@ -124,15 +124,22 @@ async def music_qr_status(platform: str, store: Store = Depends(require_auth)) -
     try:
         if platform == "netease":
             r = await netease_auth.qr_check(session["key"], session.get("cookie", ""))
-            code = {800: "expired", 801: "waiting", 802: "scanned", 803: "success"}.get(
-                r["code"], "error"
-            )
+            raw = r.get("code")
+            code = {
+                800: "expired",
+                801: "waiting",
+                802: "scanned",
+                803: "success",
+                8821: "risk",
+            }.get(raw, "error")
             message = {
                 "waiting": "等待扫码",
                 "scanned": "已扫码，请在手机上确认",
                 "expired": "二维码已过期，请重新生成",
                 "success": "登录成功",
-            }.get(code, f"状态异常（接口 code={r.get('code')}），请重新生成二维码")
+                "risk": "扫码被风控拦截（需行为验证 8821）：请改用手机验证码登录，"
+                "或在浏览器登录 music.163.com 后手动导入 Cookie",
+            }.get(code, f"状态异常（接口 code={raw}），请重新生成二维码")
             if code == "success" and r.get("cookie"):
                 _save_account(store, "netease", r["cookie"], r.get("nickname", ""))
         elif platform == "qq":
