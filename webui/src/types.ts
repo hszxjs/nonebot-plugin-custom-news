@@ -74,6 +74,7 @@ export interface GeneralSettings {
   llm_api_key: string;
   llm_base_url: string;
   llm_model: string;
+  llm_max_tokens: number;
   llm_follow_digest: boolean;
   analysis_count: number;
 }

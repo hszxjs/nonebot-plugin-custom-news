@@ -61,6 +61,9 @@ BUILTIN_SOURCES: list[SourceDef] = [
         "netease-new", "网易云新歌榜", "", "music", "🎵", True, 10, "netease_music"
     ),
     SourceDef("qq-new", "QQ音乐新歌榜", "", "music", "🎧", True, 10, "qq_music"),
+    # AI 动态（直连公开接口）
+    SourceDef("ai-iq", "AI 智商天梯", "", "tech", "🧠", True, 10, "ai_iq"),
+    SourceDef("ai-models", "大模型上新", "", "tech", "🆕", True, 8, "ai_models"),
 ]
 
 BUILTIN_SOURCE_MAP: dict[str, SourceDef] = {s.id: s for s in BUILTIN_SOURCES}

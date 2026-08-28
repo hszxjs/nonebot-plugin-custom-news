@@ -26,6 +26,7 @@ const BUILTIN_CATEGORY_OF: Record<string, string> = {
   hellogithub: "dev", v2ex: "dev", juejin: "dev",
   hupu: "fun", earthquake: "fun", "history-today": "fun",
   "netease-new": "music", "qq-new": "music",
+  "ai-iq": "tech", "ai-models": "tech",
 };
 
 interface SourceRow {

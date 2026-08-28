@@ -93,6 +93,14 @@ async def _fetch_one(
             from .sources.music import fetch_qq_new
 
             items = await fetch_qq_new(limit)
+        elif sd.fetcher == "ai_iq":
+            from .sources.ai_radar import fetch_ai_iq
+
+            items = await fetch_ai_iq(store.cache_dir, limit)
+        elif sd.fetcher == "ai_models":
+            from .sources.ai_models import fetch_ai_models
+
+            items = await fetch_ai_models(store, limit)
         else:
             client = DailyHotClient(store.config.general.dailyhot_api_url)
             items = await client.fetch(sd.route, limit)
@@ -167,6 +175,8 @@ async def fetch_digest(store: Store, force_refresh: bool = False) -> Digest:
             failed.append(sd.name)
         elif result is None:
             failed.append(sd.name)
+        elif not result.items:
+            pass  # 空数据（如「大模型上新」无新模型时）静默隐藏，不算失败
         else:
             cards.append(result)
 

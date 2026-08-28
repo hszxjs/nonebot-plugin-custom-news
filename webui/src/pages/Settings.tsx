@@ -115,6 +115,13 @@ export default function SettingsPage() {
               description="如 deepseek-chat / gpt-4o-mini"
             />
             <Input
+              label="生成上限 tokens"
+              type="number"
+              value={String(general.llm_max_tokens ?? 3000)}
+              onValueChange={(v) => setGeneral({ ...general, llm_max_tokens: Number(v) || 3000 })}
+              description="推理模型建议 ≥3000（思考过程计入）"
+            />
+            <Input
               label="每次解析条数"
               type="number"
               value={String(general.analysis_count)}

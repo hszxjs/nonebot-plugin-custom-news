@@ -32,6 +32,8 @@ class GeneralSettings(BaseModel):
     llm_api_key: str = ""
     llm_base_url: str = "https://api.deepseek.com/v1"
     llm_model: str = "deepseek-chat"
+    #: 生成上限（推理模型思考过程计入，太小会截断 JSON）
+    llm_max_tokens: int = 3000
     #: 日报发送后自动跟随解析图
     llm_follow_digest: bool = True
     #: 每次解析的新闻条数

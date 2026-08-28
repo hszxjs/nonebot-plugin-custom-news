@@ -330,9 +330,9 @@ async def get_platform_songs(
     platform: str, store, limit: int = 10
 ) -> list[SongMeta]:
     """获取某平台新歌榜（含封面/热评/播放链接），全部降级保证卡片可用。"""
-    accounts = getattr(store.config, "music_accounts", None)
-    ne_cookie = (accounts.netease.cookie if accounts and accounts.netease else "") or ""
-    qq_cookie = (accounts.qq.cookie if accounts and accounts.qq else "") or ""
+    accounts = getattr(store.config, "music_accounts", None) or {}
+    ne_cookie = (accounts.get("netease").cookie if accounts.get("netease") else "") or ""
+    qq_cookie = (accounts.get("qq").cookie if accounts.get("qq") else "") or ""
 
     if platform == "netease":
         chart = await netease_chart(store.cache_dir, cookie=ne_cookie, limit=limit)
