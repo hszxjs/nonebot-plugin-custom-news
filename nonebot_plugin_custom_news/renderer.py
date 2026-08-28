@@ -266,38 +266,90 @@ def build_variables(
 # ---------------------------------------------------------------- 渲染
 
 
-async def render_html(template_vars: dict, width: int) -> bytes:
-    """调用 htmlrender 渲染模板为 PNG（新旧 API 兼容）。"""
-    try:  # 新版 0.8+
+
+# ---------------------------------------------------------------- 兼容与防护
+
+
+async def _render_via_htmlrender(
+    template_name: str, template_vars: dict, width: int, dpr: float = 1.5
+) -> bytes:
+    """htmlrender 新旧 API 兼容。
+
+    - 0.8+：render_template(dir, name, variables=, width=, device_pixel_ratio=)
+    - 0.3~0.7：template_to_pic(template_path=, template_name=, templates=,
+      pages={"viewport": {...}}, device_scale_factor=)
+    陷阱：0.7.x 过渡版**同样导出 render_template**（渲染 HTML 文本，签名不同），
+    新版分支必须在 TypeError（签名不符）时回退旧 API——只看 ImportError 会直抛
+    "takes 1 positional argument but 2 were given"。浏览器启动等真实运行错误
+    不回退（旧 API 用同一浏览器，回退无意义）。
+    """
+    new_err: Exception | None = None
+    try:
         from nonebot_plugin_htmlrender import render_template  # type: ignore
 
         artifact = await render_template(
             str(TEMPLATE_DIR),
-            "daily_digest.html",
+            template_name,
             variables=template_vars,
             width=width,
-            # pad 宽幅长图：1.5 倍采样在聊天清晰度与文件体积间取得平衡
-            device_pixel_ratio=1.5,
+            device_pixel_ratio=dpr,
         )
         return bytes(artifact)
-    except ImportError:
-        pass
+    except (ImportError, TypeError) as e:
+        new_err = e
     except Exception as e:
-        raise RenderError(f"htmlrender 渲染失败（新版 API）: {e!r}") from e
+        raise RenderError(f"htmlrender 渲染失败: {e!r}") from e
 
-    try:  # 旧版 0.3 ~ 0.7
+    try:
         from nonebot_plugin_htmlrender import template_to_pic  # type: ignore
 
         return await template_to_pic(
-            template_dir=str(TEMPLATE_DIR),
-            template_name="daily_digest.html",
+            template_path=str(TEMPLATE_DIR),
+            template_name=template_name,
             templates=template_vars,
-            pagesize={"width": width, "height": 800},
+            pages={"viewport": {"width": width, "height": 800}},
+            device_scale_factor=dpr,
         )
     except ImportError as e:
         raise RenderError("未安装 nonebot-plugin-htmlrender") from e
     except Exception as e:
-        raise RenderError(f"htmlrender 渲染失败（旧版 API）: {e!r}") from e
+        raise RenderError(
+            f"htmlrender 渲染失败（旧版 API）: {e!r}；新版 API 尝试: {new_err!r}"
+        ) from e
+
+
+#: 输出图体积阈值：超过则自动转 JPEG（NapCat 反向 WS 对大帧敏感，46MB 实测断连）
+_MAX_IMAGE_BYTES = 10 * 1024 * 1024
+
+
+def shrink_if_huge(image: bytes, max_bytes: int = _MAX_IMAGE_BYTES) -> bytes:
+    """渲染产物超阈值时转 JPEG（quality 88）。失败则原样返回。"""
+    if len(image) <= max_bytes:
+        return image
+    try:
+        import io as _io
+
+        from PIL import Image
+
+        im = Image.open(_io.BytesIO(image)).convert("RGB")
+        out = _io.BytesIO()
+        im.save(out, "JPEG", quality=88, optimize=True)
+        data = out.getvalue()
+        logger.info(
+            f"渲染图 {len(image) // 1024}KB 超 {max_bytes // 1024 // 1024}MB 阈值，"
+            f"已自动转 JPEG {len(data) // 1024}KB"
+        )
+        return data
+    except Exception as e:
+        logger.warning(f"大图压缩失败，按原图发送: {e!r}")
+        return image
+
+
+async def render_html(template_vars: dict, width: int) -> bytes:
+    """调用 htmlrender 渲染模板为 PNG（新旧 API 兼容）。"""
+    return await _render_via_htmlrender(
+        "daily_digest.html", template_vars, width, dpr=1.5
+    )
 
 
 async def render_digest(store: Store, theme: Theme, digest: Digest) -> bytes:
@@ -308,6 +360,7 @@ async def render_digest(store: Store, theme: Theme, digest: Digest) -> bytes:
         store, theme, digest, bg_path, colors, store.config.general.render_width
     )
     data = await render_html(variables, store.config.general.render_width)
+    data = shrink_if_huge(data)
     _save_latest(store, data)
     logger.info(
         f"日报渲染完成: {len(data) // 1024}KB, "
@@ -429,26 +482,10 @@ def _truncate(text: str, n: int) -> str:
 async def render_analysis(store: Store, theme: Theme, analyses: list) -> bytes:
     """渲染「今日深读」聊天记录风格图片。"""
     variables = build_analysis_variables(store, theme, analyses)
-    try:  # 新版 0.8+
-        from nonebot_plugin_htmlrender import render_template  # type: ignore
-
-        artifact = await render_template(
-            str(TEMPLATE_DIR),
-            "analysis_chat.html",
-            variables=variables,
-            width=ANALYSIS_WIDTH,
-            device_pixel_ratio=1.5,
-        )
-        data = bytes(artifact)
-    except ImportError:
-        from nonebot_plugin_htmlrender import template_to_pic  # type: ignore
-
-        data = await template_to_pic(
-            template_dir=str(TEMPLATE_DIR),
-            template_name="analysis_chat.html",
-            templates=variables,
-            pagesize={"width": ANALYSIS_WIDTH, "height": 800},
-        )
+    data = await _render_via_htmlrender(
+        "analysis_chat.html", variables, ANALYSIS_WIDTH, dpr=1.5
+    )
+    data = shrink_if_huge(data)
     latest = store.cache_dir / "latest_analysis.png"
     try:
         latest.write_bytes(data)

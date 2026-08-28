@@ -193,6 +193,26 @@ export default function DashboardPage() {
         <div className="glass rounded-2xl px-4 py-2.5 text-small text-muted">{msg}</div>
       )}
 
+      {/* 数据源大面积失败提示（公共 DailyHot 实例不可达时引导自部署） */}
+      {(() => {
+        const entries = Object.entries(status);
+        const failed = entries.filter(([, st]) => st.last_error).length;
+        if (entries.length < 5 || failed / entries.length < 0.5) return null;
+        return (
+          <div className="rounded-2xl border border-warning/30 bg-warning-soft px-4 py-3 text-small">
+            <div className="font-semibold text-warning">
+              {failed}/{entries.length} 个数据源抓取失败
+            </div>
+            <div className="mt-1 text-muted">
+              多为 DailyHotApi 实例不可达，建议自部署后在本页「数据源」更换地址：
+              <code className="ml-1 rounded bg-white/10 px-1.5 py-0.5 text-tiny">
+                docker run --restart always -d -p 6688:6688 imsyy/dailyhot-api:latest
+              </code>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* 统计卡 */}
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         {stats.map((s) => (

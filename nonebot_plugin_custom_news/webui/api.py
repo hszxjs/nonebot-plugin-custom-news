@@ -280,6 +280,23 @@ async def upload_background(
     data = await file.read()
     if len(data) > 20 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="图片不能超过 20MB")
+    # 预缩放：超大背景图会让渲染产物膨胀（46MB PNG 实测拖垮 NapCat WS），
+    # 宽超 2560px 一律缩到 2560 并转 JPEG
+    try:
+        import io as _io
+
+        from PIL import Image
+
+        im = Image.open(_io.BytesIO(data))
+        if im.width > 2560:
+            h = int(im.height * 2560 / im.width)
+            im = im.convert("RGB").resize((2560, h), Image.LANCZOS)
+            out = _io.BytesIO()
+            im.save(out, "JPEG", quality=90, optimize=True)
+            data = out.getvalue()
+            ext = ".jpg"
+    except Exception:
+        pass
     name = f"bg_{datetime.now().strftime('%Y%m%d%H%M%S')}_{uuid.uuid4().hex[:6]}{ext}"
     (store.backgrounds_dir / name).write_bytes(data)
     return {"ok": True, "filename": name, "url": f"/custom-news/api/backgrounds/file/{name}"}

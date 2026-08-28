@@ -133,6 +133,16 @@ class Store:
         self.config_path: Path = self.data_dir / "config.json"
         self._lock = asyncio.Lock()
         self.config: RuntimeConfig = self._load_or_create()
+        # .env 显式配置优先于 store 内历史值（否则改 .env 永远不生效且无提示）
+        env_url = (self.plugin_config.custom_news_dailyhot_api_url or "").strip()
+        default_url = "https://api-hot.imsyy.top"
+        if env_url and env_url != default_url and self.config.general.dailyhot_api_url != env_url:
+            old = self.config.general.dailyhot_api_url
+            self.config.general.dailyhot_api_url = env_url
+            self._write(self.config)
+            logger.info(
+                f"dailyhot_api_url 已由 .env 接管: {old} → {env_url}"
+            )
 
     # ------------------------------------------------------------ 读写
 
