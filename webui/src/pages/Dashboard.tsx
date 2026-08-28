@@ -193,21 +193,40 @@ export default function DashboardPage() {
         <div className="glass rounded-2xl px-4 py-2.5 text-small text-muted">{msg}</div>
       )}
 
-      {/* 数据源大面积失败提示（公共 DailyHot 实例不可达时引导自部署） */}
-      {(() => {
-        const entries = Object.entries(status);
-        const failed = entries.filter(([, st]) => st.last_error).length;
-        if (entries.length < 5 || failed / entries.length < 0.5) return null;
+      {/* 数据源大面积失败提示：区分实例不可达 / 上游路由报错，只统计启用源 */}
+      {config && (() => {
+        const enabledIds = new Set(
+          Object.entries(cfg.sources).filter(([, v]) => v.enabled).map(([k]) => k),
+        );
+        const entries = Object.entries(status).filter(([id]) => enabledIds.has(id));
+        const failedEntries = entries.filter(([, st]) => st.last_error);
+        if (entries.length < 5 || failedEntries.length / entries.length < 0.5) return null;
+        const connectFails = failedEntries.filter(([, st]) =>
+          String(st.last_error).includes("ConnectError"),
+        ).length;
+        const instanceDown = connectFails >= failedEntries.length * 0.8;
         return (
           <div className="rounded-2xl border border-warning/30 bg-warning-soft px-4 py-3 text-small">
             <div className="font-semibold text-warning">
-              {failed}/{entries.length} 个数据源抓取失败
+              {failedEntries.length}/{entries.length} 个启用数据源抓取失败
             </div>
             <div className="mt-1 text-muted">
-              多为 DailyHotApi 实例不可达，建议自部署后在本页「数据源」更换地址：
-              <code className="ml-1 rounded bg-white/10 px-1.5 py-0.5 text-tiny">
-                docker run --restart always -d -p 6688:6688 imsyy/dailyhot-api:latest
-              </code>
+              {instanceDown ? (
+                <>
+                  疑似 DailyHotApi 实例不可达，建议自部署后在本页「数据源」更换地址：
+                  <code className="ml-1 rounded bg-white/10 px-1.5 py-0.5 text-tiny">
+                    docker run --restart always -d -p 6688:6688 imsyy/dailyhot-api:latest
+                  </code>
+                </>
+              ) : (
+                <>
+                  多为对应平台反爬/接口变更导致的上游路由报错（悬停状态列可看具体原因），
+                  与你的部署无关：可更新 DailyHotApi 镜像重试，或在「数据源」页停用长期失败的源。
+                  <div className="mt-0.5 text-tiny opacity-80">
+                    失败源：{failedEntries.map(([id]) => config.builtin_sources.find((b) => b.id === id)?.name ?? id).join("、")}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         );

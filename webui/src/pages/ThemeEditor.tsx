@@ -63,6 +63,7 @@ export default function ThemeEditorPage() {
   const [tab, setTab] = useState("bg");
   const [renderModal, setRenderModal] = useState(false);
   const [newModal, setNewModal] = useState(false);
+  const [delConfirm, setDelConfirm] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -220,22 +221,13 @@ export default function ThemeEditorPage() {
             >
               📋 复制为副本
             </Button>
-            {!config.preset_theme_ids.includes(theme.id) && (
+            {!config.preset_theme_ids.includes(theme.id) &&
+              theme.id in config.config.themes && (
               <Button
                 size="sm"
                 variant="flat"
                 color="danger"
-                onPress={async () => {
-                  try {
-                    await api.deleteTheme(theme.id);
-                  } catch (e) {
-                    setMsg(`❌ ${e instanceof Error ? e.message : "删除失败"}`);
-                    return;
-                  }
-                  const cfg = await api.getConfig();
-                  setConfig(cfg);
-                  setTheme(structuredClone(cfg.config.themes[cfg.config.active_theme_id]));
-                }}
+                onPress={() => setDelConfirm(true)}
               >
                 🗑️ 删除主题
               </Button>
@@ -478,15 +470,60 @@ export default function ThemeEditorPage() {
         )}
       </Modal>
 
+      <Modal
+        isOpen={delConfirm}
+        onClose={() => setDelConfirm(false)}
+        title="删除主题"
+        footer={
+          <>
+            <Button variant="light" onPress={() => setDelConfirm(false)}>
+              取消
+            </Button>
+            <Button
+              color="danger"
+              onPress={async () => {
+                setDelConfirm(false);
+                try {
+                  await api.deleteTheme(theme.id);
+                } catch (e) {
+                  setMsg(`❌ ${e instanceof Error ? e.message : "删除失败"}`);
+                  return;
+                }
+                const cfg = await api.getConfig();
+                setConfig(cfg);
+                setTheme(structuredClone(cfg.config.themes[cfg.config.active_theme_id]));
+                setMsg("主题已删除");
+              }}
+            >
+              确认删除
+            </Button>
+          </>
+        }
+      >
+        确定删除「{theme.name}」？该操作不可恢复。
+      </Modal>
+
       <NewThemeModal
         isOpen={newModal}
         onClose={() => setNewModal(false)}
         base={theme}
-        onOk={(base, name, id) => {
+        onOk={async (base, name, id) => {
           const t = base ? structuredClone(base) : defaultTheme(id);
           t.id = id;
           t.name = name;
-          setTheme(t);
+          setBusy("save");
+          try {
+            await api.saveTheme(t);
+            const cfg = await api.getConfig();
+            setConfig(cfg);
+            setTheme(t);
+            setMsg(`✅ 主题「${name}」已创建并保存，可在列表中选中编辑`);
+          } catch (e) {
+            setTheme(t);
+            setMsg(`❌ 主题已进入编辑器但保存失败：${e instanceof Error ? e.message : "未知错误"}，请点击「保存当前主题」重试`);
+          } finally {
+            setBusy("");
+          }
           setNewModal(false);
         }}
       />

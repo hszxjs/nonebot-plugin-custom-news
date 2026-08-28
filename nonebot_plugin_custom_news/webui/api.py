@@ -412,6 +412,9 @@ async def sources_status(store: Store = Depends(require_auth)) -> dict:
             status = json.loads(p.read_text("utf-8"))
         except Exception:
             status = {}
+    # 只返回当前仍存在于配置中的源，历史残留（已删除的自定义源等）不展示
+    known = set(store.config.sources.keys()) | {c.id for c in store.config.custom_sources}
+    status = {k: v for k, v in status.items() if k in known}
     return {
         "status": status,
         "dailyhot_api_url": store.config.general.dailyhot_api_url,
