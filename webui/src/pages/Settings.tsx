@@ -132,7 +132,7 @@ export default function SettingsPage() {
             isSelected={general.llm_follow_digest}
             onValueChange={(v) => setGeneral({ ...general, llm_follow_digest: v })}
           >
-            日报发送后自动跟随深读图
+            定时推送前 5 分钟预生成深读，随日报同步发送
           </Switch>
         </CardBody>
       </Card>

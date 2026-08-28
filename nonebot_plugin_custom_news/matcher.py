@@ -23,9 +23,6 @@ unsubscribe_cmd = on_command(
     "退订热点", aliases={"取消订阅热点", "热点退订"}, priority=20, block=True
 )
 help_cmd = on_command("热点帮助", aliases={"热点指令"}, priority=20, block=True)
-analysis_cmd = on_command(
-    "热点解析", aliases={"新闻解析", "今日深读"}, priority=20, block=True
-)
 music_cmd = on_command(
     "新歌榜", aliases={"音乐榜", "新歌速递"}, priority=20, block=True
 )
@@ -51,7 +48,6 @@ async def handle_today(bot: Bot, event: Event, matcher: Matcher) -> None:
         await UniMessage.image(raw=image).send()
     except Exception as e:
         await matcher.finish(f"日报生成失败：{e}")
-    await _try_follow_analysis(store, matcher)
     await matcher.finish()
 
 
@@ -82,43 +78,6 @@ async def handle_unsubscribe(bot: Bot, event: Event, matcher: Matcher) -> None:
 @help_cmd.handle()
 async def handle_help(matcher: Matcher) -> None:
     await matcher.finish(_HELP_TEXT)
-
-
-def _llm_ready(store) -> bool:
-    key = store.config.general.llm_api_key.strip()
-    return bool(key)
-
-
-async def _try_follow_analysis(store, matcher: Matcher) -> None:
-    """日报发送后自动跟随深读图（失败静默，不影响日报）。"""
-    if not store.config.general.llm_follow_digest or not _llm_ready(store):
-        return
-    try:
-        from .service import generate_analysis_image
-
-        image, _ = await generate_analysis_image(store)
-        await UniMessage.image(raw=image).send()
-    except Exception as e:
-        from nonebot import logger
-
-        logger.warning(f"深读跟随发送失败: {e!r}")
-
-
-@analysis_cmd.handle()
-async def handle_analysis(bot: Bot, event: Event, matcher: Matcher) -> None:
-    store = get_store()
-    if not _llm_ready(store):
-        await matcher.finish(f"尚未配置大模型接口{_FOLLOW_HINT}")
-    await matcher.send("正在抓取新闻原文并深度解读，约需半分钟…")
-    try:
-        from .service import generate_analysis_image
-
-        image, analyses = await generate_analysis_image(store)
-        await UniMessage.image(raw=image).send()
-        ok = sum(1 for a in analyses if a.ok)
-        await matcher.finish(f"📖 今日深读完成：成功解析 {ok}/{len(analyses)} 条新闻")
-    except Exception as e:
-        await matcher.finish(f"深读生成失败：{e}")
 
 
 @music_cmd.handle()

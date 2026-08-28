@@ -116,17 +116,6 @@ __plugin_meta__ = PluginMetadata(
                 "detail_des": "别名：取消订阅热点 / 热点退订",
             },
             {
-                "func": "热点解析",
-                "trigger_method": "`热点解析`",
-                "trigger_condition": "发送命令（需在 WebUI 配置 LLM）",
-                "brief_des": "AI 深读：抓新闻原文生成聊天记录风格解读图",
-                "detail_des": (
-                    "挑选新闻类头条，抓取原文交给大模型解析，输出「今日深读」聊天记录风格图片"
-                    "（事件/背景/要点/影响/锐评）。配置 LLM 后日报发送也会自动跟随。"
-                    "别名：新闻解析 / 今日深读"
-                ),
-            },
-            {
                 "func": "新歌榜",
                 "trigger_method": "`新歌榜`",
                 "trigger_condition": "发送命令",
