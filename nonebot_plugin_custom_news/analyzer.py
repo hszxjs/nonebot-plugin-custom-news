@@ -126,7 +126,9 @@ async def _chat(general: Any, user_prompt: str) -> str:
     payload = {
         "model": general.llm_model,
         "temperature": 0.3,
-        "max_tokens": 900,
+        # 上限而非计费：推理模型（GLM/DeepSeek-R1 等）思考过程也计入，
+        # 预算不足会截断正文导致 JSON 不完整（max_tokens=900 实测不够）
+        "max_tokens": 3000,
         "messages": [
             {"role": "system", "content": _SYSTEM_PROMPT},
             {"role": "user", "content": user_prompt},
