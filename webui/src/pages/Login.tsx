@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Newspaper } from "@phosphor-icons/react";
 import { Button, Card, Input } from "../ui";
 import { api, setToken } from "../api";
 
@@ -34,8 +35,8 @@ export default function LoginPage({ onOk }: { onOk: () => void }) {
       />
       <div className="glass relative w-full max-w-md rounded-3xl p-8 shadow-2xl">
         <div className="mb-6 text-center">
-          <div className="brand-gradient brand-glow mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-2xl text-3xl">
-            🗞️
+          <div className="brand-gradient brand-glow mx-auto mb-3 flex h-16 w-16 items-center justify-center rounded-2xl">
+            <Newspaper className="h-8 w-8 text-white drop-shadow" weight="fill" />
           </div>
           <h1 className="text-gradient text-2xl font-bold tracking-wide">全网热点日报</h1>
           <p className="mt-1 text-small text-muted">

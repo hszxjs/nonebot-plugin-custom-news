@@ -113,9 +113,12 @@ export function PageHeader({
 }) {
   return (
     <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-      <div>
-        <h1 className="text-gradient text-2xl font-bold tracking-wide">{title}</h1>
-        {desc && <p className="mt-1 text-small text-muted">{desc}</p>}
+      <div className="min-w-0">
+        <h1 className="flex items-center gap-2.5 text-2xl font-bold tracking-wide text-foreground">
+          <span className="h-6 w-1.5 shrink-0 rounded-full bg-accent" />
+          {title}
+        </h1>
+        {desc && <p className="mt-1.5 pl-4 text-small text-muted">{desc}</p>}
       </div>
       {actions}
     </div>
@@ -236,7 +239,7 @@ export function Switch({
         className={cn(
           "relative h-7 w-12 shrink-0 rounded-full transition-all duration-300",
           isSelected
-            ? "brand-gradient brand-glow"
+            ? "brand-gradient shadow-[0_3px_12px_rgba(99,102,241,.35)]"
             : "border border-white/12 bg-white/8 hover:bg-white/12",
         )}
       >
@@ -397,18 +400,18 @@ export function SegTabs({
   return (
     <div className="flex flex-wrap gap-1 rounded-2xl border border-white/8 bg-white/4 p-1">
       {tabs.map((t) => (
-        <button
-          key={t.key}
-          onClick={() => onChange(t.key)}
-          className={cn(
-            "rounded-xl px-3.5 py-1.5 text-small transition-all duration-200",
-            active === t.key
-              ? "brand-gradient font-semibold text-white shadow"
-              : "text-muted hover:bg-white/6 hover:text-foreground",
-          )}
-        >
-          {t.label}
-        </button>
+      <button
+        key={t.key}
+        onClick={() => onChange(t.key)}
+        className={cn(
+          "rounded-xl px-3.5 py-1.5 text-small transition-all duration-200",
+          active === t.key
+            ? "bg-accent-soft font-semibold text-accent"
+            : "text-muted hover:bg-white/6 hover:text-foreground",
+        )}
+      >
+        {t.label}
+      </button>
       ))}
     </div>
   );

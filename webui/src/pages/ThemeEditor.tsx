@@ -46,10 +46,10 @@ function defaultTheme(id: string): Theme {
 }
 
 const TABS = [
-  { key: "bg", label: "🖼️ 背景与配色" },
-  { key: "cards", label: "🃏 卡片样式" },
-  { key: "typo", label: "✒️ 文字页眉脚" },
-  { key: "percard", label: "🏷️ 分卡配色" },
+  { key: "bg", label: "背景与配色" },
+  { key: "cards", label: "卡片样式" },
+  { key: "typo", label: "文字页眉脚" },
+  { key: "percard", label: "分卡配色" },
 ];
 
 export default function ThemeEditorPage() {

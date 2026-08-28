@@ -1,4 +1,18 @@
 import { useCallback, useEffect, useState } from "react";
+import {
+  Alarm,
+  ArrowsClockwise,
+  BookOpen,
+  Broadcast,
+  Image as ImageIcon,
+  LinkSimple,
+  MusicNote,
+  Palette,
+  PaperPlaneTilt,
+  Play,
+  Target,
+  X,
+} from "@phosphor-icons/react";
 import { Button, Card, CardBody, Chip, PageHeader, Spinner, Tip } from "../ui";
 import { api } from "../api";
 
@@ -77,10 +91,10 @@ export default function DashboardPage() {
   const activeTheme = cfg.themes[cfg.active_theme_id];
 
   const stats = [
-    { label: "启用数据源", value: `${enabledSources}`, sub: `/ ${Object.keys(cfg.sources).length + cfg.custom_sources.length} 个源`, icon: "📡" },
-    { label: "推送目标", value: `${enabledTargets}`, sub: enabledTargets ? "定时推送中" : "发送「订阅热点」添加", icon: "🎯" },
-    { label: "定时任务", value: `${enabledSchedules.length}`, sub: enabledSchedules.map((s) => `${String(s.hour).padStart(2, "0")}:${String(s.minute).padStart(2, "0")}`).join(" / ") || "未配置", icon: "⏰" },
-    { label: "当前主题", value: activeTheme?.name ?? "—", sub: `共 ${Object.keys(cfg.themes).length} 套`, icon: "🎨" },
+    { label: "启用数据源", value: `${enabledSources}`, sub: `/ ${Object.keys(cfg.sources).length + cfg.custom_sources.length} 个源`, icon: <Broadcast className="h-6 w-6 text-accent" weight="duotone" /> },
+    { label: "推送目标", value: `${enabledTargets}`, sub: enabledTargets ? "定时推送中" : "发送「订阅热点」添加", icon: <Target className="h-6 w-6 text-accent" weight="duotone" /> },
+    { label: "定时任务", value: `${enabledSchedules.length}`, sub: enabledSchedules.map((s) => `${String(s.hour).padStart(2, "0")}:${String(s.minute).padStart(2, "0")}`).join(" / ") || "未配置", icon: <Alarm className="h-6 w-6 text-accent" weight="duotone" /> },
+    { label: "当前主题", value: activeTheme?.name ?? "—", sub: `共 ${Object.keys(cfg.themes).length} 套`, icon: <Palette className="h-6 w-6 text-accent" weight="duotone" /> },
   ];
 
   return (
@@ -98,11 +112,11 @@ export default function DashboardPage() {
                   withBusy("render", async () => {
                     const r = await api.renderPreview({});
                     setLatest(r.image);
-                    return `✅ 渲染成功（${r.cards.length} 张卡片${r.failed.length ? `，失败：${r.failed.join("、")}` : ""}）`;
+                    return `渲染成功（${r.cards.length} 张卡片${r.failed.length ? `，失败：${r.failed.join("、")}` : ""}）`;
                   })
                 }
               >
-                🖼️ 立即渲染
+                <ImageIcon className="h-4 w-4" /> 立即渲染
               </Button>
             </Tip>
             <Tip content="向全部启用的推送目标发送日报">
@@ -113,11 +127,11 @@ export default function DashboardPage() {
                 onPress={() =>
                   withBusy("push", async () => {
                     const r = await api.pushNow();
-                    return `🚀 ${r.message}`;
+                    return r.message;
                   })
                 }
               >
-                🚀 立即推送
+                <PaperPlaneTilt className="h-4 w-4" /> 立即推送
               </Button>
             </Tip>
             <Tip content="生成新歌榜聊天记录预览（实际发送用 QQ 命令「新歌榜」）">
@@ -131,11 +145,11 @@ export default function DashboardPage() {
                     setMusicPreview(r.platforms);
                     setMusicTab("netease");
                     setMusicModal(true);
-                    return "✅ 新歌榜预览已生成";
+                    return "新歌榜预览已生成";
                   })
                 }
               >
-                🎵 新歌榜
+                <MusicNote className="h-4 w-4" /> 新歌榜
               </Button>
             </Tip>
             <Tip content="抓取新闻原文，用大模型生成聊天记录风格的深度解读">
@@ -149,11 +163,11 @@ export default function DashboardPage() {
                     setAnalysisImage(r.image);
                     setAnalysisModal(true);
                     const ok = r.items.filter((x) => x.ok).length;
-                    return `✅ 深读完成（${ok}/${r.items.length} 条成功解析）`;
+                    return `深读完成（${ok}/${r.items.length} 条成功解析）`;
                   })
                 }
               >
-                📖 热点解析
+                <BookOpen className="h-4 w-4" /> 热点解析
               </Button>
             </Tip>
             <Button
@@ -164,12 +178,12 @@ export default function DashboardPage() {
                 withBusy("refresh", async () => {
                   const r = await api.refreshSources();
                   return r.ok
-                    ? `✅ 数据已刷新（${r.cards.length} 个源成功${r.failed.length ? `，失败：${r.failed.join("、")}` : ""}）`
-                    : "⚠️ 全部源抓取失败";
+                    ? `数据已刷新（${r.cards.length} 个源成功${r.failed.length ? `，失败：${r.failed.join("、")}` : ""}）`
+                    : "全部源抓取失败";
                 })
               }
             >
-              🔄 刷新数据
+              <ArrowsClockwise className="h-4 w-4" /> 刷新数据
             </Button>
           </div>
         }
@@ -184,11 +198,11 @@ export default function DashboardPage() {
         {stats.map((s) => (
           <Card key={s.label} className="glass glass-hover">
             <CardBody className="flex items-center gap-3.5 p-4">
-              <span className="brand-gradient flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-xl shadow-lg">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-accent-soft bg-accent-soft">
                 {s.icon}
               </span>
               <div className="min-w-0">
-                <div className="truncate text-2xl font-bold">{s.value}</div>
+                <div className="tnum truncate text-2xl font-bold">{s.value}</div>
                 <div className="truncate text-tiny text-muted">
                   {s.label} · {s.sub}
                 </div>
@@ -202,7 +216,7 @@ export default function DashboardPage() {
         <Card className="glass">
           <CardBody className="p-4">
             <div className="mb-3 flex items-center gap-2 font-semibold">
-              <span className="brand-gradient h-4 w-1.5 rounded-full" />
+              <span className="h-4 w-1.5 rounded-full bg-accent" />
               最近渲染结果
             </div>
             {latest ? (
@@ -222,7 +236,7 @@ export default function DashboardPage() {
         <Card className="glass">
           <CardBody className="p-4">
             <div className="mb-3 flex items-center gap-2 font-semibold">
-              <span className="brand-gradient h-4 w-1.5 rounded-full" />
+              <span className="h-4 w-1.5 rounded-full bg-accent" />
               数据源状态
             </div>
             <div className="max-h-[560px] overflow-y-auto pr-1">
@@ -283,9 +297,9 @@ export default function DashboardPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-white/8 px-5 py-3">
-              <span className="font-semibold">🎵 新歌榜 · 聊天记录预览（示意）</span>
+              <span className="font-semibold">新歌榜 · 聊天记录预览（示意）</span>
               <button className="text-muted hover:text-foreground" onClick={() => setMusicModal(false)}>
-                ✕
+                <X className="h-4 w-4" weight="bold" />
               </button>
             </div>
             <div className="flex gap-1 border-b border-white/8 px-4 py-2">
@@ -320,7 +334,13 @@ export default function DashboardPage() {
                               <div className="truncate text-small font-semibold">{s.song}</div>
                               <div className="truncate text-tiny text-muted">{s.artists}</div>
                             </div>
-                            <span className="text-lg">{s.audio.includes(".mp3") ? "▶️" : "🔗"}</span>
+                            <span className="text-muted">
+                              {s.audio.includes(".mp3") ? (
+                                <Play className="h-5 w-5 text-success" weight="fill" />
+                              ) : (
+                                <LinkSimple className="h-5 w-5" />
+                              )}
+                            </span>
                           </div>
                           <div className="ml-6 whitespace-pre-line rounded-2xl rounded-bl-md bg-white/4 p-2.5 text-tiny leading-relaxed text-muted">
                             {s.comments_text}
@@ -349,9 +369,9 @@ export default function DashboardPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-2 flex items-center justify-between">
-              <span className="font-semibold">📖 今日深读（AI 解析）</span>
-              <button className="text-muted hover:text-foreground" onClick={() => setAnalysisModal(false)}>
-                ✕ 关闭
+              <span className="font-semibold">今日深读（AI 解析）</span>
+              <button className="flex items-center gap-1 text-muted hover:text-foreground" onClick={() => setAnalysisModal(false)}>
+                <X className="h-4 w-4" weight="bold" /> 关闭
               </button>
             </div>
             <img

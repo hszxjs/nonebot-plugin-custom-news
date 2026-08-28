@@ -1,5 +1,15 @@
 import { useEffect, useState } from "react";
 import { Navigate, NavLink, Route, Routes, useNavigate } from "react-router-dom";
+import {
+  Broadcast,
+  GearSix,
+  Headphones,
+  Newspaper,
+  Palette,
+  PaperPlaneTilt,
+  SignOut,
+  SquaresFour,
+} from "@phosphor-icons/react";
 import { api, getToken } from "./api";
 import LoginPage from "./pages/Login";
 import DashboardPage from "./pages/Dashboard";
@@ -9,13 +19,15 @@ import PushPage from "./pages/Push";
 import MusicAccountsPage from "./pages/MusicAccounts";
 import SettingsPage from "./pages/Settings";
 
+const ICON_CLASS = "h-[18px] w-[18px] shrink-0";
+
 const NAV = [
-  { to: "/", label: "总览", icon: "📊", end: true },
-  { to: "/theme", label: "主题工坊", icon: "🎨", end: false },
-  { to: "/sources", label: "数据源", icon: "📡", end: false },
-  { to: "/push", label: "推送管理", icon: "🚀", end: false },
-  { to: "/music", label: "音乐账号", icon: "🎧", end: false },
-  { to: "/settings", label: "设置", icon: "⚙️", end: false },
+  { to: "/", label: "总览", icon: <SquaresFour className={ICON_CLASS} weight="duotone" />, end: true },
+  { to: "/theme", label: "主题工坊", icon: <Palette className={ICON_CLASS} weight="duotone" />, end: false },
+  { to: "/sources", label: "数据源", icon: <Broadcast className={ICON_CLASS} weight="duotone" />, end: false },
+  { to: "/push", label: "推送管理", icon: <PaperPlaneTilt className={ICON_CLASS} weight="duotone" />, end: false },
+  { to: "/music", label: "音乐账号", icon: <Headphones className={ICON_CLASS} weight="duotone" />, end: false },
+  { to: "/settings", label: "设置", icon: <GearSix className={ICON_CLASS} weight="duotone" />, end: false },
 ];
 
 function Layout({ children }: { children: React.ReactNode }) {
@@ -36,7 +48,7 @@ function Layout({ children }: { children: React.ReactNode }) {
           {/* 品牌区 */}
           <div className="brand-gradient brand-glow mb-5 rounded-xl p-3.5">
             <div className="flex items-center gap-2.5">
-              <span className="text-2xl drop-shadow">🗞️</span>
+              <Newspaper className="h-6 w-6 text-white drop-shadow" weight="fill" />
               <div>
                 <div className="text-small font-bold tracking-wide text-white">
                   全网热点日报
@@ -57,12 +69,12 @@ function Layout({ children }: { children: React.ReactNode }) {
                 className={({ isActive }) =>
                   `flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-medium transition-all duration-200 ${
                     isActive
-                      ? "brand-gradient font-semibold text-white shadow-lg"
+                      ? "bg-accent-soft font-semibold text-foreground [&_svg]:!text-accent"
                       : "text-muted hover:bg-white/6 hover:text-foreground"
                   }`
                 }
               >
-                <span className="text-base">{item.icon}</span>
+                {item.icon}
                 {item.label}
               </NavLink>
             ))}
@@ -70,13 +82,14 @@ function Layout({ children }: { children: React.ReactNode }) {
 
           <div className="mt-auto flex flex-col gap-1 px-1">
             <button
-              className="w-full rounded-xl px-3 py-2 text-left text-small text-muted transition-colors hover:bg-danger-soft hover:text-danger"
+              className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-small text-muted transition-colors hover:bg-danger-soft hover:text-danger"
               onClick={() => {
                 localStorage.removeItem("cn_token");
                 navigate("/login");
               }}
             >
-              🚪 退出登录
+              <SignOut className="h-4 w-4" />
+              退出登录
             </button>
             <div className="px-1 pt-1 text-tiny text-muted/60">
               nonebot-plugin-custom-news · v0.1.0
@@ -96,12 +109,13 @@ function Layout({ children }: { children: React.ReactNode }) {
                 className={({ isActive }) =>
                   `shrink-0 rounded-xl px-3.5 py-2 text-small ${
                     isActive
-                      ? "brand-gradient font-semibold text-white"
+                      ? "bg-accent-soft font-semibold text-accent"
                       : "text-muted"
                   }`
                 }
               >
-                {item.icon} {item.label}
+                <span className="mr-1 inline-flex align-[-2px]">{item.icon}</span>
+                {item.label}
               </NavLink>
             ))}
           </nav>
@@ -131,8 +145,8 @@ export default function App() {
 
   if (!ready) {
     return (
-      <div className="flex min-h-screen items-center justify-center text-muted">
-        加载中…
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="h-9 w-9 animate-pulse rounded-xl bg-accent-soft" />
       </div>
     );
   }

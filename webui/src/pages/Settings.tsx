@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { FloppyDisk } from "@phosphor-icons/react";
 import { Button, Card, CardBody, Divider, Input, PageHeader, Switch } from "../ui";
 import { api } from "../api";
 import type { GeneralSettings } from "../types";
@@ -79,7 +80,7 @@ export default function SettingsPage() {
               }
             }}
           >
-            💾 保存设置
+            <FloppyDisk className="h-4 w-4" /> 保存设置
           </Button>
           {msg && <span className="text-small text-muted">{msg}</span>}
         </CardBody>

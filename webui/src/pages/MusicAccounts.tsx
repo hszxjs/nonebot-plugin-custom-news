@@ -167,7 +167,7 @@ export default function MusicAccountsPage() {
           <Card key={platform} className="glass">
             <CardBody className="gap-3 p-5">
               <div className="flex flex-wrap items-center gap-3">
-                <span className="brand-gradient flex h-10 w-10 items-center justify-center rounded-2xl text-lg shadow">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-accent-soft bg-accent-soft text-lg">
                   {meta.icon}
                 </span>
                 <div className="min-w-0 flex-1">

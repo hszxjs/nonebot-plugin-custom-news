@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { FloppyDisk, X } from "@phosphor-icons/react";
 import { Button, Card, CardBody, Chip, Input, PageHeader, Select, Switch } from "../ui";
 import { api } from "../api";
 import type { ConfigResponse, PushTargetItem, ScheduleItem } from "../types";
@@ -47,7 +48,7 @@ export default function PushPage() {
         desc="在群/私聊发送「订阅热点」即可加入列表 · 定时任务保存后即时生效"
         actions={
           <Button size="sm" isLoading={busy} onPress={save}>
-            💾 保存推送配置
+            <FloppyDisk className="h-4 w-4" /> 保存推送配置
           </Button>
         }
       />
@@ -85,7 +86,7 @@ export default function PushPage() {
                     isIconOnly
                     onPress={() => setTargets((prev) => prev.filter((_, j) => j !== i))}
                   >
-                    ✕
+                    <X className="h-4 w-4" weight="bold" />
                   </Button>
                 </div>
               ))}
@@ -217,7 +218,7 @@ export default function PushPage() {
                   isIconOnly
                   onPress={() => setSchedules((prev) => prev.filter((_, j) => j !== i))}
                 >
-                  ✕
+                  <X className="h-4 w-4" weight="bold" />
                 </Button>
               </div>
             ))}

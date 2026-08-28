@@ -23,6 +23,8 @@
 
 /* ============================================================
    品牌主题：深空紫（覆盖 HeroUI 深色主题变量，卡片/控件/光效一体化）
+   纪律：品牌渐变只出现在 primary 按钮、登录 Hero 与开关轨道三处；
+   页面标题用实色 + 字重表达层级；阴影一律带偏移与柔化。
    ============================================================ */
 html.dark {
   --background: #0a0c14;
@@ -71,10 +73,13 @@ body {
    设计系统工具类
    ============================================================ */
 
-/* 玻璃卡片 */
+/* 玻璃卡片：内高光 + 底边框，边缘有物理折射感 */
 .glass {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.018));
   border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 1px 2px rgba(0, 0, 0, 0.18);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
 }
@@ -84,18 +89,24 @@ body {
 }
 .glass-hover:hover {
   border-color: rgba(124, 140, 248, 0.35);
-  box-shadow: 0 8px 36px rgba(124, 140, 248, 0.10);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 8px 28px rgba(10, 12, 20, 0.45),
+    0 3px 10px rgba(124, 140, 248, 0.10);
 }
 
-/* 品牌渐变（按钮/滑块/头像块/侧边栏激活态） */
+/* 品牌渐变（primary 按钮 / 登录 Hero / 开关轨道三处） */
 .brand-gradient {
   background-image: linear-gradient(135deg, #6366f1 0%, #8b5cf6 55%, #d946ef 130%);
 }
+/* 带偏移的着色投影，代替零偏移光晕 */
 .brand-glow {
-  box-shadow: 0 4px 20px rgba(139, 92, 246, 0.35);
+  box-shadow:
+    0 6px 22px rgba(99, 102, 241, 0.32),
+    0 2px 6px rgba(99, 102, 241, 0.22);
 }
 
-/* 渐变文字（页面标题） */
+/* 渐变文字（仅登录页 Hero 使用一次） */
 .text-gradient {
   background-image: linear-gradient(120deg, #9aa7ff 0%, #c4b5fd 55%, #6ee7d7 110%);
   -webkit-background-clip: text;
@@ -108,13 +119,14 @@ body {
   height: 2.5rem;
   width: 100%;
   min-width: 0;
-  border-radius: 0.8rem;
+  border-radius: 0.75rem;
   border: 1px solid rgba(255, 255, 255, 0.10);
   background: rgba(255, 255, 255, 0.04);
   padding: 0 0.8rem;
   font-size: 0.875rem;
   color: var(--foreground);
   outline: none;
+  caret-color: var(--accent);
   transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 .field-input:focus {
@@ -130,18 +142,35 @@ select.field-input option {
   color: var(--foreground);
 }
 
+/* ---------- 浏览器原生表面主题化 ---------- */
+/* 文本选区 */
+::selection {
+  background: rgba(124, 140, 248, 0.35);
+  color: #ffffff;
+}
+/* 键盘焦点环：统一 accent 色 */
+:focus-visible {
+  outline: 2px solid rgba(124, 140, 248, 0.65);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
 /* 细滚动条 */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(140, 140, 160, 0.3);
+  background: rgba(140, 140, 160, 0.28);
   border-radius: 8px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(140, 140, 160, 0.5);
+  background: rgba(140, 140, 160, 0.45);
 }
 ::-webkit-scrollbar-track {
   background: transparent;
+}
+
+/* 数字表格化（统计数值/时间） */
+.tnum {
+  font-variant-numeric: tabular-nums;
 }

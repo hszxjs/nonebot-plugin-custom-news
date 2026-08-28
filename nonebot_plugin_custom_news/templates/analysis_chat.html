@@ -54,23 +54,24 @@
 
   .date-pill {
     display: inline-flex; align-items: center; gap: 10px;
-    padding: 8px 24px; border-radius: 999px;
-    background: var(--card-bg); border: 1px solid var(--card-border);
-    backdrop-filter: blur(10px);
-    color: var(--subtext); font-size: 20px; letter-spacing: 2px;
+    padding: 8px 22px; border-radius: 999px;
+    background: linear-gradient(var(--card-bg), var(--card-bg)), var(--card-bg);
+    border: 1px solid var(--card-border);
+    color: var(--subtext); font-size: 19px; letter-spacing: 2px;
   }
   .date-pill .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--primary); }
 
   .main-title {
-    margin-top: 18px; font-size: 52px; font-weight: 700; letter-spacing: 4px;
+    margin-top: 18px; font-size: 48px; font-weight: 700; letter-spacing: 3px; line-height: 1.2;
     background: linear-gradient(120deg, var(--primary), var(--accent));
     -webkit-background-clip: text; background-clip: text;
     -webkit-text-fill-color: transparent;
   }
-  .sub-title { margin-top: 8px; color: var(--subtext); font-size: 20px; letter-spacing: 6px; }
+  .sub-title { margin-top: 8px; color: var(--subtext); font-size: 19px; letter-spacing: 4px; }
   .header-divider {
-    margin: 20px auto 0; width: 200px; height: 4px; border-radius: 999px;
+    margin: 18px auto 0; width: 180px; height: 4px; border-radius: 999px;
     background: linear-gradient(90deg, transparent, var(--primary), var(--accent), transparent);
+    opacity: 0.5;
   }
 
   /* ---------------- 新闻区块 ---------------- */
@@ -82,13 +83,13 @@
   .news-divider .line { flex: 1; height: 1px; background: var(--card-border); }
   .news-divider .tag {
     display: inline-flex; align-items: center; gap: 8px;
-    padding: 6px 18px; border-radius: 999px;
+    padding: 5px 16px; border-radius: 999px;
     background: color-mix(in srgb, var(--primary) 14%, transparent);
     border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
-    color: var(--text); font-size: 20px; font-weight: 700; white-space: nowrap;
+    color: var(--text); font-size: 19px; font-weight: 700; white-space: nowrap;
     max-width: 86%;
   }
-  .news-divider .tag .src { color: var(--subtext); font-weight: 500; font-size: 18px; }
+  .news-divider .tag .src { color: var(--subtext); font-weight: 500; font-size: 17px; }
   .news-divider .tag .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   /* 聊天气泡行 */
@@ -98,7 +99,7 @@
   .avatar {
     flex: none; width: 52px; height: 52px; border-radius: 14px;
     display: flex; align-items: center; justify-content: center;
-    font-size: 26px;
+    font-size: 25px;
     background: linear-gradient(135deg,
       color-mix(in srgb, var(--primary) 30%, transparent),
       color-mix(in srgb, var(--accent) 30%, transparent));
@@ -109,20 +110,21 @@
   .bubble-col { display: flex; flex-direction: column; gap: 6px; max-width: 84%; }
   .row.self .bubble-col { align-items: flex-end; }
 
-  .sender { color: var(--subtext); font-size: 17px; padding: 0 6px; }
+  .sender { color: var(--subtext); font-size: 16px; padding: 0 6px; }
 
+  /* 气泡：card-bg 自叠加保证正文可读 */
   .bubble {
     position: relative;
-    padding: 16px 20px; border-radius: 18px;
-    background: var(--card-bg);
+    padding: 15px 19px; border-radius: 18px;
+    background: linear-gradient(var(--card-bg), var(--card-bg)), var(--card-bg);
     border: 1px solid var(--card-border);
     backdrop-filter: blur(12px);
     box-shadow: 4px 6px 18px rgba(0, 0, 0, 0.10);
-    font-size: 22px; line-height: 1.55; text-align: justify;
+    font-size: 22px; line-height: 1.58; text-align: justify;
   }
   .bubble::after { /* 45° 高光 */
     content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
-    background: linear-gradient(135deg, rgba(255,255,255,.22) 0%, rgba(255,255,255,.05) 30%, transparent 50%);
+    background: linear-gradient(135deg, rgba(255,255,255,.18) 0%, rgba(255,255,255,.05) 30%, transparent 50%);
   }
 
   .bubble.greeting {
@@ -132,31 +134,37 @@
 
   .bubble .label {
     display: inline-flex; align-items: center; gap: 6px;
-    margin-bottom: 8px; padding: 2px 12px; border-radius: 999px;
-    font-size: 17px; font-weight: 700; letter-spacing: 1px;
+    margin-bottom: 8px; padding: 2px 11px; border-radius: 999px;
+    font-size: 16px; font-weight: 700; letter-spacing: 1px;
     background: color-mix(in srgb, var(--primary) 16%, transparent);
     color: var(--primary);
   }
   .bubble .label.alt { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); }
   .bubble ul { list-style: none; display: flex; flex-direction: column; gap: 8px; }
-  .bubble ul li { padding-left: 20px; position: relative; }
+  .bubble ul li { padding-left: 19px; position: relative; }
   .bubble ul li::before {
     content: ""; position: absolute; left: 2px; top: 13px;
-    width: 8px; height: 8px; border-radius: 3px;
+    width: 7px; height: 7px; border-radius: 2.5px;
     background: linear-gradient(135deg, var(--primary), var(--accent));
   }
+  /* 锐评气泡：整框淡染强调，不再使用左侧色条 */
   .bubble.remark {
-    border-left: 4px solid var(--primary);
+    background:
+      linear-gradient(var(--card-bg), var(--card-bg)),
+      linear-gradient(color-mix(in srgb, var(--primary) 8%, transparent), color-mix(in srgb, var(--primary) 8%, transparent)),
+      var(--card-bg);
     font-weight: 700;
   }
-  .bubble .meta { margin-top: 10px; color: var(--subtext); font-size: 16px; }
+  .bubble .meta { margin-top: 10px; color: var(--subtext); font-size: 15px; }
 
   /* ---------------- Footer ---------------- */
   .footer {
-    margin-top: 10px; text-align: center;
-    color: var(--subtext); font-size: 17px; line-height: 1.7;
+    margin-top: 24px; padding-top: 18px;
+    border-top: 1px solid color-mix(in srgb, var(--subtext) 22%, transparent);
+    text-align: center;
+    color: var(--subtext); font-size: 16px; line-height: 1.75;
   }
-  .footer .warn { opacity: .85; }
+  .footer .warn { opacity: .8; }
 </style>
 </head>
 <body>
@@ -165,7 +173,6 @@
     <div class="date-pill">
       <span class="dot"></span>
       <span>{{ date_text }}</span>
-      <span class="dot" style="background: var(--accent);"></span>
     </div>
     <div class="main-title">今日深读</div>
     <div class="sub-title">AI 新闻解析 · 基于原文</div>

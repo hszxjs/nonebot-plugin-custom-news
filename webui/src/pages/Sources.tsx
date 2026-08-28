@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { ArrowsClockwise, FloppyDisk, X } from "@phosphor-icons/react";
 import { Button, Card, CardBody, Input, PageHeader, Switch } from "../ui";
 import { api } from "../api";
 import type { CustomSourceDef, SourceSetting } from "../types";
@@ -141,10 +142,10 @@ export default function SourcesPage() {
         actions={
           <div className="flex gap-2">
             <Button size="sm" variant="flat" isLoading={busy === "refresh"} onPress={refreshAll}>
-              🔄 抓取测试
+              <ArrowsClockwise className="h-4 w-4" /> 抓取测试
             </Button>
             <Button size="sm" isLoading={busy === "save"} onPress={save}>
-              💾 保存配置
+              <FloppyDisk className="h-4 w-4" /> 保存配置
             </Button>
           </div>
         }
@@ -171,7 +172,7 @@ export default function SourcesPage() {
           <Card key={cat} className="glass">
             <CardBody className="p-4">
               <div className="mb-3 flex items-center gap-2.5">
-                <span className="brand-gradient flex h-8 w-8 items-center justify-center rounded-xl text-base shadow">
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-accent-soft bg-accent-soft text-base">
                   {CATEGORY_ICON[cat] ?? "📌"}
                 </span>
                 <span className="font-semibold">{label}</span>
@@ -193,7 +194,7 @@ export default function SourcesPage() {
       <Card className="glass">
         <CardBody className="p-4">
           <div className="mb-3 flex items-center gap-2.5">
-            <span className="brand-gradient flex h-8 w-8 items-center justify-center rounded-xl text-base shadow">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-accent-soft bg-accent-soft text-base">
               {CATEGORY_ICON.custom}
             </span>
             <span className="font-semibold">自定义源</span>
@@ -294,7 +295,7 @@ function SourceTile({
           onClick={() => onRemove(row.id)}
           title="删除该自定义源"
         >
-          ✕
+          <X className="h-4 w-4" weight="bold" />
         </button>
       )}
     </div>
