@@ -120,7 +120,7 @@ WebUI「设置」页填写 OpenAI 兼容接口（DeepSeek / 智谱 / Ollama 等�
 <summary>常见问题（点击展开）</summary>
 
 - **`Module is not loaded as a plugin!`**：editable/本地路径安装时 NoneBot 的插件查找器解析不到包路径。用 `nb plugin install` 标准方式安装，或确保插件包目录在 Python `sys.path` 中（`pip install -e .` 请加 `--config-settings editable_mode=compat`）。
-- **htmlrender 版本**：建议 `nonebot-plugin-htmlrender>=0.8`（插件已按此声明）。0.7.x 可运行（内置回退），但需设置环境变量 `RENDER_BACKEND=playwright`，且渲染日志可能出现 `Page Error: addRow/onHasParentDirectory` 目录页噪音——不影响出图，升级即消失。
+- **htmlrender 版本**：0.3~0.8 全版本兼容（内置新旧 API 自动切换），依赖声明保持宽松的 `>=0.3.0`——因为部分常用插件（如 picmenu-next 0.5.x）要求 `<0.8`，强制提升会导致依赖解析冲突。留在 0.7.x 时需设置环境变量 `RENDER_BACKEND=playwright`，且渲染日志可能出现 `Page Error: addRow/onHasParentDirectory` 目录页噪音——不影响出图，无共存约束时可升级 0.8 消除。
 - **推送大图失败 / NapCat 反向 WS 断连**：插件已在两处防护——上传背景图自动预缩放到 2560px 宽；渲染产物超过 10MB 自动转 JPEG。仍断连请减少每卡条数或调低自定义背景分辨率。
 - **`.env` 与 WebUI 的关系**：`custom_news_dailyhot_api_url` 与 `custom_news_webui_password` 在 `.env` 中**显式配置**时优先生效（每次启动覆盖 store 历史值并打日志）；其余抓取/渲染参数以 WebUI 设置页为准（存于本机 config.json）。
 - **大量数据源抓取失败**：多为公共 DailyHot 实例不可达（总览页会自动提示）。按下方 Docker 命令自部署后，在「数据源」页把地址改为 `http://127.0.0.1:6688`。
