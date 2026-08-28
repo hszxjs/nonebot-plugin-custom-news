@@ -42,7 +42,19 @@ export default function DigestMock({ theme, cards, bgUrl }: Props) {
   const overlayRgb =
     theme.background.overlay_mode === "light" ? "255,255,255" : "12,14,24";
   const scale = theme.typography.scale;
-  const shadows = [
+  // 卡片表面色按「卡片不透明度」重组 alpha（与渲染模板 rgba(card-rgb, alpha) 一致）
+function effCardBg(cardBg: string, opacity: number | undefined): string {
+  const m = cardBg.match(/rgba?\(([^)]+)\)/);
+  const a = opacity ?? 0.91;
+  if (m) {
+    const parts = m[1].split(",").map((x) => x.trim());
+    const nums = parts.filter((x) => /^\d+$/.test(x));
+    if (nums.length >= 3) return `rgba(${nums[0]}, ${nums[1]}, ${nums[2]}, ${a})`;
+  }
+  return cardBg;
+}
+
+const shadows = [
     "none",
     "4px 6px 16px rgba(0,0,0,.10)",
     "10px 16px 36px rgba(0,0,0,.16)",
@@ -128,7 +140,7 @@ export default function DigestMock({ theme, cards, bgUrl }: Props) {
                 key={card.source_id}
                 className="relative overflow-hidden p-2.5"
                 style={{
-                  background: c.card_bg,
+                  background: effCardBg(c.card_bg, theme.cards.card_opacity),
                   border: `1px solid ${c.card_border}`,
                   borderRadius: theme.cards.border_radius / 2,
                   backdropFilter: `blur(${theme.cards.glass_blur / 2}px) saturate(${theme.cards.glass_saturation})`,

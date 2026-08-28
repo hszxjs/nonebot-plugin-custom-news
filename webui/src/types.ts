@@ -34,6 +34,7 @@ export interface CardStyleConfig {
   glass_blur: number;
   glass_saturation: number;
   shadow: number;
+  card_opacity?: number;
   show_hot: boolean;
 }
 

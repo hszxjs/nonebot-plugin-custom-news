@@ -142,6 +142,27 @@ def resolve_colors(store: Store, theme: Theme, bg_path: Path) -> PaletteColors:
 # ---------------------------------------------------------------- 变量构建
 
 
+def _card_rgb(card_bg: str) -> str:
+    """从 palette.card_bg（rgba 或 hex）提取 "r, g, b"，供模板按不透明度重组。"""
+    import re
+
+    m = re.search(r"rgba?\(([^)]+)\)", card_bg)
+    if m:
+        parts = [x.strip() for x in m.group(1).split(",")]
+        nums = [p for p in parts if re.fullmatch(r"\d+", p)]
+        if len(nums) >= 3:
+            return f"{nums[0]}, {nums[1]}, {nums[2]}"
+    m = re.fullmatch(r"#([0-9a-fA-F]{6})", card_bg.strip())
+    if m:
+        h = m.group(1)
+        return f"{int(h[0:2], 16)}, {int(h[2:4], 16)}, {int(h[4:6], 16)}"
+    m = re.fullmatch(r"#([0-9a-fA-F]{3})", card_bg.strip())
+    if m:
+        h = m.group(1)
+        return f"{int(h[0]*2, 16)}, {int(h[1]*2, 16)}, {int(h[2]*2, 16)}"
+    return "20, 24, 36"
+
+
 def _overlay_rgb(mode: str, primary_hex: str) -> str:
     """遮罩基色（浅/深）混入 14% 主题主色，让整图带统一的色调渲染。
 
@@ -220,6 +241,8 @@ def build_variables(
         "border_radius": theme.cards.border_radius,
         "glass_blur": theme.cards.glass_blur,
         "glass_sat": theme.cards.glass_saturation,
+        "card_rgb": _card_rgb(colors.card_bg),
+        "card_opacity": theme.cards.card_opacity,
         "shadow_level": theme.cards.shadow,
         "show_hot": theme.cards.show_hot,
         "scale": theme.typography.scale,

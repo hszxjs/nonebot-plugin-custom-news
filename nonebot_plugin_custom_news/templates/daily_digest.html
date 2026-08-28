@@ -32,6 +32,9 @@
     --rank-n: {{ palette.rank_n }};
     --hot: {{ palette.hot }};
     --radius: {{ border_radius }}px;
+    /* 卡片表面色与不透明度（主题工坊「卡片不透明度」直接控制透底程度） */
+    --card-rgb: {{ card_rgb }};
+    --card-alpha: {{ card_opacity }};
     /* 间距标尺（乘 scale 使用）：4 / 8 / 12 / 20 / 32 / 48 */
     --u1: calc(4px * {{ scale }});
     --u2: calc(8px * {{ scale }});
@@ -89,17 +92,14 @@
   /* ---------------- Header ---------------- */
   .header { text-align: center; margin-bottom: calc(40px * {{ scale }}); }
 
-  /* 日期胶囊：card-bg 自叠加提高遮蔽度，避免花背景透进文字区 */
+  /* 日期胶囊：卡片表面色 + 略高于卡片的遮蔽度 */
   .date-pill {
     display: inline-flex;
     align-items: center;
     gap: var(--u3);
     padding: calc(9px * {{ scale }}) calc(26px * {{ scale }});
     border-radius: 999px;
-    background:
-      linear-gradient(var(--card-bg), var(--card-bg)),
-      linear-gradient(var(--card-bg), var(--card-bg)),
-      var(--card-bg);
+    background: rgba(var(--card-rgb), min(calc(var(--card-alpha) + 0.05), 1));
     border: 1px solid var(--card-border);
     color: var(--subtext);
     font-size: calc(23px * {{ scale }});
@@ -149,12 +149,9 @@
     gap: var(--u5);
   }
 
-  /* 卡片：card-bg 三层自叠加（alpha 立方级提升），文字可读性优先，保留玻璃身份 */
+  /* 卡片：表面色按 card-opacity 直接控制透底程度（默认 0.91 ≈ 此前三层叠加的可读性） */
   .card {
-    background:
-      linear-gradient(var(--card-bg), var(--card-bg)),
-      linear-gradient(var(--card-bg), var(--card-bg)),
-      var(--card-bg);
+    background: rgba(var(--card-rgb), var(--card-alpha));
     border: 1px solid var(--card-border);
     border-radius: var(--radius);
     backdrop-filter: blur({{ glass_blur }}px) saturate({{ glass_sat }});

@@ -37,7 +37,7 @@ function defaultTheme(id: string): Theme {
         rank_n: "#9aa0b0", hot: "#8d92a6",
       },
     },
-    cards: { columns: 2, items_per_card: 10, border_radius: 24, glass_blur: 18, glass_saturation: 1.4, shadow: 2, show_hot: true },
+    cards: { columns: 2, items_per_card: 10, border_radius: 24, glass_blur: 18, glass_saturation: 1.4, shadow: 2, card_opacity: 0.91, show_hot: true },
     typography: { scale: 1.0, title_weight: 700 },
     header: { title: "今日热点速递", subtitle: "全网热点 · 一图速览", show_date: true },
     footer: { custom_text: "", show_credit: true },
@@ -392,6 +392,7 @@ export default function ThemeEditorPage() {
               <Slider label="毛玻璃强度" minValue={0} maxValue={40} step={1} value={theme.cards.glass_blur} onChange={(v) => patch((t) => (t.cards.glass_blur = v))} formatValue={(v) => `${v}px`} />
               <Slider label="毛玻璃饱和度" minValue={1} maxValue={2.5} step={0.1} value={theme.cards.glass_saturation} onChange={(v) => patch((t) => (t.cards.glass_saturation = v))} formatValue={(v) => `${v.toFixed(1)}x`} />
               <Slider label="阴影强度" minValue={0} maxValue={3} step={1} value={theme.cards.shadow} onChange={(v) => patch((t) => (t.cards.shadow = v))} />
+              <Slider label="卡片不透明度" minValue={0.2} maxValue={1} step={0.01} value={theme.cards.card_opacity ?? 0.91} onChange={(v) => patch((t) => (t.cards.card_opacity = v))} formatValue={(v) => `${Math.round(v * 100)}%`} />
               <Switch isSelected={theme.cards.show_hot} onValueChange={(v) => patch((t) => (t.cards.show_hot = v))}>
                 显示热度数值
               </Switch>

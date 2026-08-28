@@ -59,6 +59,8 @@ class CardStyleConfig(BaseModel):
     glass_saturation: float = 1.4
     #: 卡片阴影强度 0~3（0 关闭）
     shadow: int = 2
+    #: 卡片不透明度 0.2~1.0（1 为实底；调低更透出背景图）
+    card_opacity: float = Field(default=0.91, ge=0.2, le=1.0)
     #: 是否显示每条热点右侧的热度数值
     show_hot: bool = True
 
