@@ -127,8 +127,11 @@ async def _chat(general: Any, user_prompt: str) -> str:
         "model": general.llm_model,
         "temperature": 0.3,
         # 上限而非计费：推理模型（GLM/DeepSeek-R1 等）思考过程也计入，
-        # 预算不足会截断正文导致 JSON 不完整（默认 3000）
-        "max_tokens": int(getattr(general, "llm_max_tokens", 3000) or 3000),
+        # 预算不足会截断正文导致 JSON 不完整（默认 8000）
+        "max_tokens": int(getattr(general, "llm_max_tokens", 8000) or 8000),
+        # 强制 JSON 输出，根治 GLM 系模型偶发的代码围栏/引号漂移；
+        # 部分端点/模型不支持该参数（400），下方自动去参重试
+        "response_format": {"type": "json_object"},
         "messages": [
             {"role": "system", "content": _SYSTEM_PROMPT},
             {"role": "user", "content": user_prompt},
@@ -144,6 +147,11 @@ async def _chat(general: Any, user_prompt: str) -> str:
             if wait:
                 await asyncio.sleep(wait)
             resp = await client.post(url, json=payload, headers=headers)
+            if resp.status_code == 400 and "response_format" in payload:
+                # 端点/模型不支持 json_object 模式：去掉参数重试（不再视为错误）
+                payload.pop("response_format")
+                logger.info("LLM 端点不支持 response_format（400），回退普通模式重试")
+                continue
             if resp.status_code == 404:
                 raise RuntimeError(
                     f"接口 404，请检查 Base URL（当前: {url}；"

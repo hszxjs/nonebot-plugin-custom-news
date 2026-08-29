@@ -119,9 +119,9 @@ export default function SettingsPage() {
             <Input
               label="生成上限 tokens"
               type="number"
-              value={String(general.llm_max_tokens ?? 3000)}
-              onValueChange={(v) => setGeneral({ ...general, llm_max_tokens: Number(v) || 3000 })}
-              description="推理模型建议 ≥3000（思考过程计入）"
+              value={String(general.llm_max_tokens ?? 8000)}
+              onValueChange={(v) => setGeneral({ ...general, llm_max_tokens: Number(v) || 8000 })}
+              description="推理模型（GLM/DeepSeek-R1 等）思考计入，建议 8000 起"
             />
             <Input
               label="每次解析条数"
