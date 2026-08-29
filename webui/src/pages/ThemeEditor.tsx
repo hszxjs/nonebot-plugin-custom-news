@@ -42,6 +42,7 @@ function defaultTheme(id: string): Theme {
     header: { title: "今日热点速递", subtitle: "全网热点 · 一图速览", show_date: true },
     footer: { custom_text: "", show_credit: true },
     per_card: {},
+    analysis: { width: 840, show_background: true, bubble_opacity: 0.9, text_color: "", subtext_color: "" },
   };
 }
 
@@ -50,6 +51,7 @@ const TABS = [
   { key: "cards", label: "卡片样式" },
   { key: "typo", label: "文字页眉脚" },
   { key: "percard", label: "分卡配色" },
+  { key: "analysis", label: "深读样式" },
 ];
 
 export default function ThemeEditorPage() {
@@ -411,6 +413,44 @@ export default function ThemeEditorPage() {
               <Switch isSelected={theme.cards.show_hot} onValueChange={(v) => patch((t) => (t.cards.show_hot = v))}>
                 显示热度数值
               </Switch>
+            </div>
+          )}
+
+          {tab === "analysis" && (
+            <div className="grid gap-4 py-1">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Slider label="画幅宽度" minValue={640} maxValue={1280} step={20} value={theme.analysis?.width ?? 840} onChange={(v) => patch((t) => ((t.analysis ??= { width: 840, show_background: true, bubble_opacity: 0.9, text_color: "", subtext_color: "" }).width = v))} formatValue={(v) => `${v}px`} />
+                <Slider label="气泡不透明度" minValue={0.2} maxValue={1} step={0.01} value={theme.analysis?.bubble_opacity ?? 0.9} onChange={(v) => patch((t) => ((t.analysis ??= { width: 840, show_background: true, bubble_opacity: 0.9, text_color: "", subtext_color: "" }).bubble_opacity = v))} formatValue={(v) => `${Math.round(v * 100)}%`} />
+              </div>
+              <Switch isSelected={theme.analysis?.show_background ?? true} onValueChange={(v) => patch((t) => ((t.analysis ??= { width: 840, show_background: true, bubble_opacity: 0.9, text_color: "", subtext_color: "" }).show_background = v))}>
+                显示主题背景图（关闭为纯渐变底）
+              </Switch>
+              <Switch
+                isSelected={!!(theme.analysis?.text_color || theme.analysis?.subtext_color)}
+                onValueChange={(v) =>
+                  patch((t) => {
+                    t.analysis ??= { width: 840, show_background: true, bubble_opacity: 0.9, text_color: "", subtext_color: "" };
+                    if (!v) {
+                      t.analysis.text_color = "";
+                      t.analysis.subtext_color = "";
+                    } else {
+                      t.analysis.text_color = t.analysis.text_color || (t.background.overlay_mode === "dark" ? "#eef0fa" : "#2c2f3c");
+                      t.analysis.subtext_color = t.analysis.subtext_color || (t.background.overlay_mode === "dark" ? "#aab0c8" : "#66708c");
+                    }
+                  })
+                }
+              >
+                自定义字体颜色（默认跟随主题配色）
+              </Switch>
+              {(!!theme.analysis?.text_color || !!theme.analysis?.subtext_color) && (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <ColorField label="正文字体颜色" value={theme.analysis?.text_color ?? "#eef0fa"} onChange={(v) => patch((t) => ((t.analysis ??= { width: 840, show_background: true, bubble_opacity: 0.9, text_color: "", subtext_color: "" }).text_color = v))} />
+                  <ColorField label="次级文字颜色" value={theme.analysis?.subtext_color ?? "#aab0c8"} onChange={(v) => patch((t) => ((t.analysis ??= { width: 840, show_background: true, bubble_opacity: 0.9, text_color: "", subtext_color: "" }).subtext_color = v))} />
+                </div>
+              )}
+              <p className="text-tiny text-muted/80">
+                深读图（AI 解析聊天记录）专属：画幅、气泡透明度、背景显示与字色；右侧预览对深读样式不生效，以日报推送时的深读图为准。
+              </p>
             </div>
           )}
 

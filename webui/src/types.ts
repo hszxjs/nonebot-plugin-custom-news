@@ -38,6 +38,14 @@ export interface CardStyleConfig {
   show_hot: boolean;
 }
 
+export interface AnalysisConfig {
+  width: number;
+  show_background: boolean;
+  bubble_opacity: number;
+  text_color?: string;
+  subtext_color?: string;
+}
+
 export interface TypographyConfig {
   scale: number;
   title_weight: number;
@@ -64,6 +72,7 @@ export interface Theme {
   header: HeaderConfig;
   footer: FooterConfig;
   per_card: Record<string, string>;
+  analysis?: AnalysisConfig;
 }
 
 export interface GeneralSettings {

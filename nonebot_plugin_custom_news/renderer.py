@@ -396,18 +396,19 @@ ANALYSIS_WIDTH = 840  # 手机聊天截图比例
 
 
 def build_analysis_variables(
-    store: Store, theme: Theme, analyses: list, extra: dict | None = None
+    store: Store,
+    theme: Theme,
+    analyses: list,
+    extra: dict | None = None,
+    colors_override=None,
 ) -> dict:
     from datetime import datetime
     from zoneinfo import ZoneInfo
 
     from .sources.dailyhot import format_hot  # noqa: F401（保持导入一致性）
 
-    colors = (
-        theme.palette.colors
-        if theme.palette.mode == "manual"
-        else theme.palette.colors
-    )
+    # 优先使用按背景提取后的配色（auto 模式），否则回退主题色板
+    colors = colors_override or theme.palette.colors
     now = datetime.now(ZoneInfo(store.config.general.timezone))
     is_dark = theme.background.overlay_mode == "dark"
     if is_dark:
@@ -430,6 +431,13 @@ def build_analysis_variables(
             }
         )
 
+    # 深读专属字色覆盖（空 = 跟随配色）
+    ac = theme.analysis
+    if ac.text_color:
+        colors = colors.model_copy(update={"text": ac.text_color})
+    if ac.subtext_color:
+        colors = colors.model_copy(update={"subtext": ac.subtext_color})
+
     news_list = [
         {
             "source": a.source_name,
@@ -448,7 +456,7 @@ def build_analysis_variables(
     ]
     model = store.config.general.llm_model
     return {
-        "width": ANALYSIS_WIDTH,
+        "width": theme.analysis.width,
         "font_regular": _data_uri(
             FONT_DIR / "HarmonyOS_Sans_SC_Regular.woff2", "font/woff2", "regular"
         ),
@@ -483,21 +491,33 @@ def _truncate(text: str, n: int) -> str:
 async def render_analysis(store: Store, theme: Theme, analyses: list) -> bytes:
     """渲染「今日深读」聊天记录风格图片。"""
     # 与日报一致：解析主题背景（自定义上传/预设/壁纸缓存），auto 配色按背景提取
+    ac = theme.analysis
     bg_vars: dict = {}
+    resolved = None
     try:
         bg_path = await resolve_background_async(store, theme)
-        colors = resolve_colors(store, theme, bg_path)
-        bg_vars = {
-            "bg_url": _data_uri(bg_path, "image/jpeg"),
-            "overlay_rgb": _overlay_rgb(theme.background.overlay_mode, colors.primary),
-            "overlay_opacity": theme.background.overlay,
-            "bg_blur": theme.background.blur,
-        }
+        resolved = resolve_colors(store, theme, bg_path)
+        if ac.show_background:
+            bg_vars = {
+                "bg_url": _data_uri(bg_path, "image/jpeg"),
+                "overlay_rgb": _overlay_rgb(theme.background.overlay_mode, resolved.primary),
+                "overlay_opacity": theme.background.overlay,
+                "bg_blur": theme.background.blur,
+            }
     except Exception as e:
         logger.debug(f"深读背景解析失败，退回渐变底: {e!r}")
-    variables = build_analysis_variables(store, theme, analyses, extra=bg_vars)
+    base_colors = resolved or theme.palette.colors
+    bg_vars.update(
+        {
+            "bubble_opacity": ac.bubble_opacity,
+            "card_rgb": _card_rgb(base_colors.card_bg),
+        }
+    )
+    variables = build_analysis_variables(
+        store, theme, analyses, extra=bg_vars, colors_override=resolved
+    )
     data = await _render_via_htmlrender(
-        "analysis_chat.html", variables, ANALYSIS_WIDTH, dpr=1.5
+        "analysis_chat.html", variables, ac.width, dpr=1.5
     )
     data = shrink_if_huge(data)
     latest = store.cache_dir / "latest_analysis.png"

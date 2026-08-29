@@ -65,6 +65,21 @@ class CardStyleConfig(BaseModel):
     show_hot: bool = True
 
 
+class AnalysisConfig(BaseModel):
+    """深读图（聊天记录风格）样式。"""
+
+    #: 画幅宽度 px
+    width: int = Field(default=840, ge=640, le=1280)
+    #: 是否显示主题背景图（关闭为纯渐变底）
+    show_background: bool = True
+    #: 聊天气泡不透明度
+    bubble_opacity: float = Field(default=0.9, ge=0.2, le=1.0)
+    #: 字体颜色覆盖（空 = 跟随主题配色 / auto 背景提取）
+    text_color: str = ""
+    #: 次级文字颜色覆盖（发送人/元信息等）
+    subtext_color: str = ""
+
+
 class TypographyConfig(BaseModel):
     scale: float = Field(default=1.0, gt=0.5, le=1.8)
     title_weight: int = 700
@@ -94,6 +109,8 @@ class Theme(BaseModel):
     footer: FooterConfig = FooterConfig()
     #: 按源 id 覆写卡片主色（标题/横线），如 {"weibo": "#ff6b6b"}
     per_card: dict[str, str] = Field(default_factory=dict)
+    #: 深读图专属样式
+    analysis: AnalysisConfig = AnalysisConfig()
 
 
 # --------------------------------------------------------------------------
