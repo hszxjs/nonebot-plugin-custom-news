@@ -261,7 +261,12 @@ async def get_preset_background(bg_id: str) -> FileResponse:
 
 
 @router.get("/backgrounds/file/{filename}")
-async def get_uploaded_background(filename: str, store: Store = Depends(require_auth)) -> FileResponse:
+async def get_uploaded_background(filename: str) -> FileResponse:
+    # 与预设背景端点一致免鉴权：图片经 <img>/CSS url() 加载无法携带 token，
+    # 鉴权会导致主题工坊预览里自定义背景 401 不显示
+    from ..store import get_store
+
+    store = get_store()
     if "/" in filename or "\\" in filename or ".." in filename:
         raise HTTPException(status_code=400, detail="非法文件名")
     path = store.backgrounds_dir / filename
@@ -432,6 +437,23 @@ async def sources_refresh(store: Store = Depends(require_auth)) -> dict:
         ],
         "failed": digest.failed,
     }
+
+
+@router.post("/llm/test")
+async def llm_test(store: Store = Depends(require_auth)) -> dict:
+    """用当前 LLM 配置发一条最小请求，验证端点/Key/模型可用性。"""
+    from ..analyzer import _chat, _chat_completions_url
+
+    g = store.config.general
+    if not g.llm_api_key.strip():
+        raise HTTPException(status_code=400, detail="尚未配置 API Key")
+    try:
+        reply = await _chat(g, "回复两个字：正常")
+    except Exception as e:
+        return {"ok": False, "url": _chat_completions_url(g.llm_base_url),
+                "model": g.llm_model, "error": str(e)[:300]}
+    return {"ok": True, "url": _chat_completions_url(g.llm_base_url),
+            "model": g.llm_model, "reply": (reply or "")[:60]}
 
 
 @router.post("/llm/analyze")

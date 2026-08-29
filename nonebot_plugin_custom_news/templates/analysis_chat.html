@@ -38,9 +38,13 @@
   }
 
   .page {
+    position: relative;
     width: {{ width }}px;
     min-height: 100vh;
     background:
+      {% if bg_url %}
+      url("{{ bg_url }}") center / cover no-repeat,
+      {% endif %}
       radial-gradient(900px 500px at 85% -5%, color-mix(in srgb, var(--primary) 16%, transparent), transparent 60%),
       radial-gradient(700px 500px at -5% 30%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 55%),
       linear-gradient(175deg, {{ page_bg_top }}, {{ page_bg_bottom }});
@@ -48,6 +52,29 @@
     padding: 44px 40px 36px;
     font-size: 24px;
   }
+
+  {% if bg_blur > 0 and bg_url %}
+  .page::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    backdrop-filter: blur({{ bg_blur }}px);
+    -webkit-backdrop-filter: blur({{ bg_blur }}px);
+  }
+  {% endif %}
+
+  {% if bg_url %}
+  .bg-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      180deg,
+      rgba({{ overlay_rgb }}, {{ overlay_opacity }}) 0%,
+      rgba({{ overlay_rgb }}, {{ overlay_opacity | round(2) * 0.55 }}) 45%,
+      rgba({{ overlay_rgb }}, {{ overlay_opacity }}) 100%
+    );
+  }
+  {% endif %}
 
   /* ---------------- Header ---------------- */
   .header { text-align: center; margin-bottom: 34px; }
@@ -169,6 +196,7 @@
 </head>
 <body>
 <div class="page">
+  {% if bg_url %}<div class="bg-overlay"></div>{% endif %}
   <div class="header">
     <div class="date-pill">
       <span class="dot"></span>

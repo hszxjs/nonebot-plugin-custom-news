@@ -94,3 +94,28 @@ async def push_image_to_all(store: Store, image: bytes) -> dict:
             logger.warning(f"日报推送失败 {item.label}: {last_err!r}")
 
     return {"ok": ok, "fail": fails, "total": len(targets)}
+
+
+async def push_text_to_all(store: Store, text: str) -> dict:
+    """向全部启用的推送目标发送文字（用于深读失败提示等运维通知）。"""
+    targets = [t for t in store.config.push_targets if t.enabled]
+    if not targets:
+        return {"ok": 0, "fail": [], "total": 0}
+    ok, fails = 0, []
+    for item in targets:
+        try:
+            target = Target.load(item.target)
+        except Exception as e:
+            fails.append((item.label, f"目标解析失败: {e!r}"))
+            continue
+        sent = False
+        for bot in get_bots().values():
+            try:
+                await UniMessage.text(text).send(target=target, bot=bot)
+                sent = True
+                break
+            except Exception:
+                continue
+        if sent:
+            ok += 1
+    return {"ok": ok, "fail": fails, "total": len(targets)}

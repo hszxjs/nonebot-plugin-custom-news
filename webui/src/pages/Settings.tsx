@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { FloppyDisk } from "@phosphor-icons/react";
+import { FloppyDisk, Lightning } from "@phosphor-icons/react";
 import { Button, Card, CardBody, Divider, Input, PageHeader, Switch } from "../ui";
 import { api } from "../api";
 import type { GeneralSettings } from "../types";
@@ -10,6 +10,8 @@ export default function SettingsPage() {
   const [pwd, setPwd] = useState({ old: "", neo: "", repeat: "" });
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState("");
+  const [llmBusy, setLlmBusy] = useState(false);
+  const [llmResult, setLlmResult] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const cfg = await api.getConfig();
@@ -127,6 +129,28 @@ export default function SettingsPage() {
               value={String(general.analysis_count)}
               onValueChange={(v) => setGeneral({ ...general, analysis_count: Number(v) || 3 })}
             />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              size="sm"
+              variant="flat"
+              isLoading={llmBusy}
+              onPress={async () => {
+                setLlmBusy(true);
+                setLlmResult(null);
+                try {
+                  const r = await api.llmTest();
+                  setLlmResult(r.ok ? `✅ 连接成功（${r.model}）：${r.reply ?? ""}` : `❌ 连接失败：${r.error ?? "未知错误"}`);
+                } catch (e) {
+                  setLlmResult(`❌ ${e instanceof Error ? e.message : "请求失败"}`);
+                } finally {
+                  setLlmBusy(false);
+                }
+              }}
+            >
+              <Lightning className="h-4 w-4" /> 测试连接
+            </Button>
+            {llmResult && <span className="text-small text-muted">{llmResult}</span>}
           </div>
           <Switch
             isSelected={general.llm_follow_digest}

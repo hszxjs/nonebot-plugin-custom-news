@@ -396,7 +396,7 @@ ANALYSIS_WIDTH = 840  # 手机聊天截图比例
 
 
 def build_analysis_variables(
-    store: Store, theme: Theme, analyses: list
+    store: Store, theme: Theme, analyses: list, extra: dict | None = None
 ) -> dict:
     from datetime import datetime
     from zoneinfo import ZoneInfo
@@ -464,6 +464,7 @@ def build_analysis_variables(
         "date_text": now.strftime("%Y年%m月%d日") + " · " + _WEEKDAYS[now.weekday()],
         "news_list": news_list,
         "model_text": f"由 {model} 解析",
+        **(extra or {}),
     }
 
 
@@ -481,7 +482,20 @@ def _truncate(text: str, n: int) -> str:
 
 async def render_analysis(store: Store, theme: Theme, analyses: list) -> bytes:
     """渲染「今日深读」聊天记录风格图片。"""
-    variables = build_analysis_variables(store, theme, analyses)
+    # 与日报一致：解析主题背景（自定义上传/预设/壁纸缓存），auto 配色按背景提取
+    bg_vars: dict = {}
+    try:
+        bg_path = await resolve_background_async(store, theme)
+        colors = resolve_colors(store, theme, bg_path)
+        bg_vars = {
+            "bg_url": _data_uri(bg_path, "image/jpeg"),
+            "overlay_rgb": _overlay_rgb(theme.background.overlay_mode, colors.primary),
+            "overlay_opacity": theme.background.overlay,
+            "bg_blur": theme.background.blur,
+        }
+    except Exception as e:
+        logger.debug(f"深读背景解析失败，退回渐变底: {e!r}")
+    variables = build_analysis_variables(store, theme, analyses, extra=bg_vars)
     data = await _render_via_htmlrender(
         "analysis_chat.html", variables, ANALYSIS_WIDTH, dpr=1.5
     )

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Button,
   Card,
@@ -63,6 +63,29 @@ export default function ThemeEditorPage() {
   const [tab, setTab] = useState("bg");
   const [renderModal, setRenderModal] = useState(false);
   const [newModal, setNewModal] = useState(false);
+  const [autoImage, setAutoImage] = useState<string | null>(null);
+  const [autoRendering, setAutoRendering] = useState(false);
+  const autoTimer = useRef<number | null>(null);
+
+  // 编辑停顿 2s 后自动调真实渲染，右侧面板直接展示最终产出全图
+  useEffect(() => {
+    if (!theme) return;
+    if (autoTimer.current) window.clearTimeout(autoTimer.current);
+    autoTimer.current = window.setTimeout(async () => {
+      setAutoRendering(true);
+      try {
+        const r = await api.renderPreview({ theme });
+        setAutoImage(r.image);
+      } catch {
+        /* 静默：编辑中的主题可能尚未完整，手动「真实渲染」会给出报错 */
+      } finally {
+        setAutoRendering(false);
+      }
+    }, 2000);
+    return () => {
+      if (autoTimer.current) window.clearTimeout(autoTimer.current);
+    };
+  }, [theme]);
   const [delConfirm, setDelConfirm] = useState(false);
 
   useEffect(() => {
@@ -440,19 +463,26 @@ export default function ThemeEditorPage() {
         <Card className="glass sticky top-4">
           <CardBody className="gap-3 p-4">
             <div className="flex items-center justify-between">
-              <span className="font-semibold">实时预览</span>
-              <Tip content="调用后端 Playwright 生成最终日报图">
+              <span className="font-semibold">实时预览（真实渲染）</span>
+              {autoRendering && <span className="text-tiny text-muted">渲染中…</span>}
+              <Tip content="立即用后端 Playwright 生成最终日报图（不等自动防抖）">
                 <Button size="sm" variant="flat" isLoading={busy === "render" || busy === "palette" || busy === "upload"} onPress={() => void renderReal()}>
-                  📸 真实渲染
+                  📸 立即渲染
                 </Button>
               </Tip>
             </div>
-            <DigestMock theme={theme} cards={cards} bgUrl={bgPreviewUrl} />
+            <div className="max-h-[72vh] overflow-y-auto rounded-xl">
+              {autoImage ? (
+                <img src={`data:image/png;base64,${autoImage}`} alt="真实渲染预览" className="w-full" />
+              ) : (
+                <DigestMock theme={theme} cards={cards} bgUrl={bgPreviewUrl} />
+              )}
+            </div>
             <Button size="sm" variant="flat" onPress={() => void applyAutoPalette()} isLoading={busy === "palette"}>
               🎨 用当前背景提取配色
             </Button>
             <p className="text-tiny text-muted/80">
-              预览为 React 模拟效果；「真实渲染」生成最终日报图（记得先保存主题再渲染推送）。
+              编辑停顿约 2 秒后自动生成真实日报全图；「立即渲染」可跳过等待并弹窗查看大图。
             </p>
           </CardBody>
         </Card>

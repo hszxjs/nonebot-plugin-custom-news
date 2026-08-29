@@ -12,7 +12,7 @@ from nonebot import logger, require
 require("nonebot_plugin_apscheduler")
 scheduler = require("nonebot_plugin_apscheduler").scheduler
 
-from .pusher import push_image_to_all
+from .pusher import push_image_to_all, push_text_to_all
 from .service import generate_digest_image
 from .store import Store, get_store
 
@@ -108,7 +108,8 @@ async def scheduled_push(schedule_id: str) -> None:
         logger.info(
             f"定时推送 [{item.label}] 完成: 成功 {result['ok']}/{result['total']}"
         )
-        # 深读：优先发预生成图；无预生成（未开启/失败/过期）时现场生成兜底
+        # 深读：优先发预生成图；无预生成（未开启/失败/过期）时现场生成兜底；
+        # 任何失败都向推送目标发文字提示，绝不能静默断更
         if store.config.general.llm_follow_digest and store.config.general.llm_api_key.strip():
             pregen = _pregen_file(store, schedule_id)
             try:
@@ -123,5 +124,13 @@ async def scheduled_push(schedule_id: str) -> None:
                 await push_image_to_all(store, ana_img)
             except Exception as e:
                 logger.warning(f"[{item.label}] 深读发送失败: {e!r}")
+                try:
+                    await push_text_to_all(
+                        store,
+                        f"⚠️ 今日深读未能生成：{str(e)[:120]}\n"
+                        "可在 WebUI「设置」页用「测试连接」排查 LLM 配置。",
+                    )
+                except Exception as notify_err:
+                    logger.warning(f"[{item.label}] 深读失败提示也发送失败: {notify_err!r}")
     except Exception as e:
         logger.error(f"定时推送 [{item.label}] 失败: {e!r}")

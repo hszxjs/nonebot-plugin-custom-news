@@ -91,6 +91,8 @@ export const api = {
       body: JSON.stringify(theme),
     }),
 
+  llmTest: () => request<{ ok: boolean; url?: string; model?: string; reply?: string; error?: string }>("/llm/test", { method: "POST" }),
+
   deleteTheme: (id: string) =>
     request<{ ok: boolean }>(`/themes/${id}`, { method: "DELETE" }),
 
