@@ -58,8 +58,8 @@ def _save_fetch_status(store: Store, status: dict[str, Any]) -> None:
     p = store.cache_dir / "fetch_status.json"
     try:
         p.write_text(json.dumps(status, ensure_ascii=False, indent=2), "utf-8")
-    except OSError:
-        pass
+    except OSError as e:
+        logger.warning(f"抓取状态写入失败: {e!r}")
 
 
 #: fetch_status.json 是「读全量 → 改一项 → 整体覆写」，并发抓取时后写者会覆盖先写者，

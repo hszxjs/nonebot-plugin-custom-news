@@ -166,6 +166,7 @@ class Store:
         self.plugin_config = plugin_config
         self.data_dir: Path = get_plugin_data_dir()
         self.cache_dir: Path = get_plugin_cache_dir()
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.backgrounds_dir: Path = self.data_dir / "backgrounds"
         self.backgrounds_dir.mkdir(parents=True, exist_ok=True)
         self.config_path: Path = self.data_dir / "config.json"
