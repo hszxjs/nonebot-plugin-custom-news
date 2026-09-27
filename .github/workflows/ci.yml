@@ -12,10 +12,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
-      - name: 安装（插件依赖 + dev）
+      - name: 安装（插件依赖 + dev + 驱动 extras）
         run: |
           uv venv
-          uv pip install -e ".[dev]" nonebot2 nonebot-plugin-alconna nonebot-plugin-htmlrender
+          # 必须带 nonebot2 的 extras：nonebot.init() 会加载 fastapi 驱动，
+          # 只装 fastapi 包不够（驱动还需要 uvicorn 等），否则 conftest 直接 ImportError。
+          # 原先漏了 extras，导致每次推送的 CI 都失败（GitHub 会给推送者发失败通知）。
+          uv pip install -e ".[dev]" "nonebot2[fastapi,httpx,websockets]"
       - name: 单元测试（65 个，0.4s）
         run: uv run python -m pytest
       - name: ruff（提示性）
