@@ -22,6 +22,8 @@ class MusicSourceError(Exception):
 
 def rows_to_items(rows: list[dict], limit: int) -> list[HotItem]:
     """把榜单行投影成日报卡片用的 HotItem（标题 = 歌名 - 歌手）。"""
+    if limit <= 0 or not rows:
+        return []
     items: list[HotItem] = []
     for row in rows:
         name = " ".join(str(row.get("song") or "").split())

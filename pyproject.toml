@@ -45,3 +45,23 @@ nonebot_plugin_custom_news = [
 
 [tool.nonebot]
 plugins = ["nonebot_plugin_custom_news"]
+
+[project.optional-dependencies]
+# 开发/回归：pip install -e ".[dev]" 后 python -m pytest
+dev = ["pytest>=8.0", "ruff>=0.8", "bandit>=1.7"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "B", "I", "UP"]
+ignore = ["E501"]  # 行宽交给 formatter，不重复报
+
+[tool.bandit]
+exclude_dirs = ["tests", "webui"]

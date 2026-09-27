@@ -82,7 +82,9 @@ class CustomSourceDef(BaseModel):
 class ScheduleItem(BaseModel):
     """一个定时推送时段。"""
 
-    id: str
+    #: 会被拼进 APScheduler 的 job id（custom_news_pre_<id>），因此限制字符集：
+    #: id='pre_x' 与 id='x' 会互相覆盖，导致某时段的日报永远不推
+    id: str = Field(pattern=r"^[A-Za-z0-9_-]{1,32}$")
     label: str = "每日推送"
     hour: int = Field(default=8, ge=0, le=23)
     minute: int = Field(default=0, ge=0, le=59)
@@ -178,13 +180,29 @@ class Store:
     # ------------------------------------------------------------ 读写
 
     def _default_config(self) -> RuntimeConfig:
+        # .env 是外部输入：越界值在这里收敛并告警，不能让 Store 初始化直接抛错
+        # （否则 _store 永远为 None，WebUI 与命令全 500，且重启也不自愈）
+        env_width = self.plugin_config.custom_news_render_width
+        if not 640 <= env_width <= 4096:
+            logger.warning(
+                f".env 的 custom_news_render_width={env_width} 超出 640-4096，已收敛"
+            )
+            env_width = min(max(env_width, 640), 4096)
+        env_tz = self.plugin_config.custom_news_timezone
+        try:
+            from zoneinfo import ZoneInfo as _ZI
+
+            _ZI(env_tz)
+        except Exception:
+            logger.warning(f".env 的 custom_news_timezone={env_tz!r} 非法，回退 Asia/Shanghai")
+            env_tz = "Asia/Shanghai"
         cfg = RuntimeConfig(
             version=CONFIG_VERSION,
             general=GeneralSettings(
                 dailyhot_api_url=self.plugin_config.custom_news_dailyhot_api_url,
-                render_width=self.plugin_config.custom_news_render_width,
+                render_width=env_width,
                 cache_ttl=self.plugin_config.custom_news_cache_ttl,
-                timezone=self.plugin_config.custom_news_timezone,
+                timezone=env_tz,
             ),
             sources={
                 s.id: SourceSetting(enabled=s.default_enabled, limit=s.default_limit)
@@ -253,14 +271,79 @@ class Store:
                     self._write(cfg)
                 return cfg
             except Exception as e:
-                logger.error(f"config.json 解析失败，将重建默认配置: {e!r}")
-                backup = self.config_path.with_suffix(".json.bak")
-                try:
-                    os.replace(self.config_path, backup)
-                except OSError:
-                    pass
+                # 校验失败 ≠ 文件损坏：逐个分区降级修复，绝不整份重建
+                logger.error(f"config.json 校验失败，按分区修复: {e!r}")
+                return self._salvage(data)
+        # 只有 JSON 本身解析不了时才走重建（此时确实没有可救的内容）
+        logger.error("config.json 无法解析，备份后重建默认配置")
+        self._backup()
         cfg = self._default_config()
         self._write(cfg)
+        return cfg
+
+    def _backup(self) -> None:
+        try:
+            os.replace(self.config_path, self.config_path.with_suffix(".json.bak"))
+        except OSError:
+            pass
+
+    def _repair(self, model_cls: Any, raw: object, label: str) -> Any:
+        """先整体校验；失败则**逐字段**校验，只把非法字段落回默认值。"""
+        if not isinstance(raw, dict):
+            logger.error(f"[降级] {label} 不是对象，使用默认值")
+            return model_cls()
+        try:
+            return model_cls.model_validate(raw)
+        except Exception as e:  # noqa: BLE001
+            logger.error(f"[降级] {label} 校验失败，改为逐字段修复: {e!r}")
+
+        # 注意：必须用「模型本身」逐字段校验，不能按 field.annotation 单独校验——
+        # 那样会绕过 @field_validator（时区校验就在校验器里，注解只是 str）。
+        # 单字段构造 {fname: value} 其余走默认值，既隔离字段又不跳过校验器。
+        values: dict[str, Any] = {}
+        for fname in model_cls.model_fields:
+            if fname not in raw:
+                continue
+            try:
+                values[fname] = getattr(model_cls.model_validate({fname: raw[fname]}), fname)
+            except Exception as e:  # noqa: BLE001
+                logger.error(f"[降级] 字段 {label}.{fname} 非法，落回默认值: {e!r}")
+        return model_cls().model_copy(update=values)
+
+    def _salvage(self, data: object) -> RuntimeConfig:
+        """校验失败时的降级路径：逐分区、必要时逐字段修复，**绝不整份重建**。
+
+        背景：校验器（时区/宽度/weekdays 等）会让「旧版本自己写进去的历史值」在升级后
+        首次加载时失败。若失败即整份重建，会静默丢掉 LLM Key、推送目标、自定义主题、
+        音乐 cookie，并重新生成 WebUI 密码与签名 secret（旧 Token 全废、不可撤销）。
+        粒度必须到**字段**：只有一个 timezone 非法时，同分区里的 LLM Key 必须留住。
+        """
+        from pydantic import BaseModel, TypeAdapter
+
+        self._backup()
+        base = self._default_config()
+        if not isinstance(data, dict):
+            logger.error("[降级] 配置根不是对象，使用默认配置（原文件已备份为 .bak）")
+            self._write(base)
+            return base
+
+        values: dict[str, Any] = {}
+        for name, field in RuntimeConfig.model_fields.items():
+            if name not in data:
+                continue
+            ann = field.annotation
+            try:
+                if isinstance(ann, type) and issubclass(ann, BaseModel):
+                    # 结构化分区（general/webui/...）：坏了也只修坏字段，不重生成其余
+                    values[name] = self._repair(ann, data[name], label=name)
+                else:
+                    values[name] = TypeAdapter(ann).validate_python(data[name])
+            except Exception as e:  # noqa: BLE001
+                logger.error(f"[降级] 分区 {name} 无法修复，落回默认值: {e!r}")
+
+        cfg = base.model_copy(update=values)
+        self._write(cfg)
+        logger.warning("[降级] 配置已按分区/字段修复并写回（原文件备份为 config.json.bak）")
         return cfg
 
     def _write(self, cfg: RuntimeConfig) -> None:

@@ -37,6 +37,11 @@ def load_ttl_cache(cache_file: Path, ttl: float, key: str = "items") -> Any | No
     except Exception as e:
         logger.debug(f"缓存读取失败（按未命中处理）{cache_file.name}: {e!r}")
         return None
+    if not isinstance(data, dict):
+        # 合法 JSON 但根不是对象（列表/字符串/数字）：旧实现在这里抛 AttributeError，
+        # 且因发生在请求之前，会让该源「永久失败」直到有人手动删缓存
+        logger.debug(f"缓存 {cache_file.name} 结构不是对象，按未命中处理")
+        return None
     try:
         age = time.time() - float(data.get(_CACHE_TS_KEY) or 0)
     except (TypeError, ValueError):

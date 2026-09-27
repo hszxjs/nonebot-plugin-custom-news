@@ -231,3 +231,99 @@ def test_resolve_render_size_pixels_decrease_monotonically() -> None:
 
     pixels = [w * d for w, d in (resolve_render_size(x, 1.5) for x in (640, 1280, 1600, 2000, 3000))]
     assert pixels == sorted(pixels), pixels
+
+
+# ---------------------------------------------------------------- 配置降级（P0 回归）
+
+
+def test_salvage_keeps_other_sections_when_one_is_invalid(tmp_path, monkeypatch) -> None:
+    """校验失败只能修「坏掉的那个分区」，不得整份重建。
+
+    历史场景：旧版本允许把 timezone 写成 'UTC+8'，升级后新校验器会判它非法。
+    若失败即整份重建，会静默丢掉 LLM Key、推送目标、自定义主题、音乐 cookie，
+    并重新生成 WebUI 密码与 secret（旧 Token 全废，不可撤销）。
+    """
+    import json
+
+    from nonebot_plugin_custom_news import store as store_mod
+
+    data_dir = tmp_path / "data"
+    data_dir.mkdir(parents=True)
+    (data_dir / "config.json").write_text(
+        json.dumps(
+            {
+                "version": 3,
+                "general": {
+                    "timezone": "UTC+8",  # 旧版本写进去的非法值
+                    "llm_api_key": "sk-keep-me",
+                    "render_width": 2000,
+                },
+                "schedules": [
+                    {"id": "custom1", "label": "我的时段", "hour": 7, "minute": 30}
+                ],
+                "webui": {"username": "admin", "password_sha": "a" * 64, "secret": "s" * 64},
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(store_mod, "get_plugin_data_dir", lambda: data_dir)
+    monkeypatch.setattr(store_mod, "get_plugin_cache_dir", lambda: tmp_path / "cache")
+    monkeypatch.setattr(store_mod, "_store", None)
+
+    cfg = store_mod.get_store().config
+
+    assert cfg.general.timezone == "Asia/Shanghai", "非法时区应落回默认值"
+    assert cfg.general.llm_api_key == "sk-keep-me", "LLM Key 被整份重建丢掉了"
+    assert cfg.general.render_width == 2000, "同分区里的合法字段也被重置了"
+    assert [s.id for s in cfg.schedules] == ["custom1"], "推送时段被整份重建丢掉了"
+    assert cfg.webui.secret == "s" * 64, "secret 被轮换，旧 Token 会全部失效"
+    assert cfg.webui.password_sha == "a" * 64
+    assert (data_dir / "config.json.bak").exists(), "原文件应留备份"
+
+
+def test_env_out_of_range_does_not_break_store(tmp_path, monkeypatch) -> None:
+    """.env 越界值必须收敛，不能让 Store 初始化抛错（否则全接口 500 且重启不自愈）。"""
+    from nonebot_plugin_custom_news.store import Store
+
+    class _Cfg:
+        custom_news_dailyhot_api_url = "https://api-hot.imsyy.top"
+        custom_news_render_width = 5000  # 越界
+        custom_news_cache_ttl = 1800
+        custom_news_timezone = "UTC+8"  # 非 IANA
+        custom_news_webui_password = None
+
+    monkeypatch.setattr(
+        Store, "__init__",
+        lambda self, cfg: (
+            setattr(self, "plugin_config", cfg),
+            setattr(self, "data_dir", tmp_path / "d"),
+            setattr(self, "cache_dir", tmp_path / "c"),
+            setattr(self, "backgrounds_dir", tmp_path / "d" / "bg"),
+            setattr(self, "config_path", tmp_path / "d" / "config.json"),
+            (tmp_path / "d").mkdir(parents=True, exist_ok=True),
+            (tmp_path / "c").mkdir(parents=True, exist_ok=True),
+            (tmp_path / "d" / "bg").mkdir(parents=True, exist_ok=True),
+        )[-1],
+    )
+    store_obj = Store.__new__(Store)
+    Store.__init__(store_obj, _Cfg())  # type: ignore[misc]
+    store_obj.config = store_obj._default_config()  # type: ignore[attr-defined]
+
+    assert store_obj.config.general.render_width == 4096
+    assert store_obj.config.general.timezone == "Asia/Shanghai"
+
+
+def test_load_ttl_cache_non_object_root(tmp_path: Path) -> None:
+    """合法 JSON 但根不是对象时按未命中处理（旧实现抛 AttributeError → 该源永久失败）。"""
+    f = tmp_path / "c.json"
+    f.write_text("[1, 2, 3]", "utf-8")
+    assert load_ttl_cache(f, ttl=60) is None
+
+
+def test_rows_to_items_limit_non_positive() -> None:
+    from nonebot_plugin_custom_news.sources.music import rows_to_items
+
+    rows = [{"song": "a", "artists": "b", "jump_url": "u"}]
+    assert rows_to_items(rows, 0) == []
+    assert rows_to_items(rows, -3) == []

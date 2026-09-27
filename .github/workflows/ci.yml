@@ -1,0 +1,44 @@
+name: CI
+
+# 注意：本工作流先「只加不强制」——lint 与 bundle 一致性为提示性步骤，
+# 观察几轮稳定后再考虑设为必需检查。
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: 安装（插件依赖 + dev）
+        run: |
+          uv venv
+          uv pip install -e ".[dev]" nonebot2 nonebot-plugin-alconna nonebot-plugin-htmlrender
+      - name: 单元测试（65 个，0.4s）
+        run: uv run python -m pytest
+      - name: ruff（提示性）
+        continue-on-error: true
+        run: uv run ruff check .
+      - name: bandit（提示性：只看 medium 以上）
+        continue-on-error: true
+        run: uv run bandit -q -ll -r nonebot_plugin_custom_news
+
+  bundle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: webui/package-lock.json
+      - name: 构建前端
+        run: npm ci --prefix webui && npm run build --prefix webui
+      - name: 校验已提交的 bundle 与源码一致（提示性）
+        continue-on-error: true
+        run: |
+          rm -rf nonebot_plugin_custom_news/webui/dist
+          cp -R webui/dist nonebot_plugin_custom_news/webui/dist
+          git diff --exit-code -- nonebot_plugin_custom_news/webui/dist

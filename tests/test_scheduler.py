@@ -15,7 +15,7 @@ def test_rebuild_jobs_registers_two_jobs_per_schedule(store, aps_shim) -> None:
     enabled = [s for s in store.config.schedules if s.enabled]
     assert len(ids) == 2 * len(enabled)
     for item in enabled:
-        assert f"custom_news_{item.id}" in ids
+        assert f"custom_news_push_{item.id}" in ids
         assert f"custom_news_pre_{item.id}" in ids
 
 
@@ -54,3 +54,50 @@ def test_pregen_filename_follows_configured_timezone(store) -> None:
     finally:
         os.environ.pop("TZ", None)
         time.tzset()
+
+
+def test_job_id_prefixes_do_not_collide(store, aps_shim) -> None:
+    """id 以 pre_ 开头的时段不得覆盖别的时段的推送任务（job id 全局唯一）。"""
+    from nonebot_plugin_custom_news.store import ScheduleItem
+
+    store.config.schedules = [
+        ScheduleItem(id="pre_a", hour=9, minute=0, label="甲"),
+        ScheduleItem(id="a", hour=10, minute=0, label="乙"),
+    ]
+    sched_mod.rebuild_jobs(store)
+
+    push_a = sched_mod.scheduler.get_job("custom_news_push_a")
+    pre_pre_a = sched_mod.scheduler.get_job("custom_news_pre_pre_a")
+    assert push_a is not None, "id='a' 的推送任务被 id='pre_a' 的预生成覆盖了"
+    assert push_a.func is sched_mod.scheduled_push
+    assert pre_pre_a is not None and pre_pre_a.func is sched_mod.pre_generate_analysis
+
+
+def test_pregen_day_of_week_wraps_with_time(store, aps_shim) -> None:
+    """00:00-00:04 的时段：预生成回绕到前一天，星期必须同步前移。
+
+    否则预生成被注册到「推送日 23:5x」——比推送晚约 24 小时，永远命不中，
+    每周白烧一次 LLM 深读。
+    """
+    from nonebot_plugin_custom_news.store import ScheduleItem
+
+    store.config.schedules = [ScheduleItem(id="midnight", hour=0, minute=2, weekdays=[0])]
+    sched_mod.rebuild_jobs(store)
+
+    pre = sched_mod.scheduler.get_job("custom_news_pre_midnight")
+    push = sched_mod.scheduler.get_job("custom_news_push_midnight")
+    assert pre is not None and push is not None
+    # 周一(0) 00:02 的预生成应在周日(6) 23:57
+    assert "day_of_week='6'" in str(pre.trigger)
+    assert "day_of_week='0'" in str(push.trigger)
+
+
+def test_schedule_id_pattern_rejects_path_like_ids(store) -> None:
+    import pytest
+
+    from nonebot_plugin_custom_news.store import ScheduleItem
+
+    with pytest.raises(ValueError):
+        ScheduleItem(id="../../etc/passwd")
+    with pytest.raises(ValueError):
+        ScheduleItem(id="a b")

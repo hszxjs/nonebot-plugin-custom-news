@@ -17,7 +17,12 @@ from .pusher import push_image_to_all, push_text_to_all
 from .service import generate_digest_image
 from .store import Store, get_store
 
+#: 清理用的统一前缀
 _JOB_PREFIX = "custom_news_"
+#: 两类任务用**互相不嵌套**的前缀：此前推送是 "custom_news_<id>"、预生成是
+#: "custom_news_pre_<id>"，于是 id='pre_x' 的预生成会覆盖 id='x' 的推送任务
+#: （jobs 按 id 全局唯一），该时段的日报就永远不推了
+_PUSH_PREFIX = "custom_news_push_"
 _PREGEN_PREFIX = "custom_news_pre_"
 _PREGEN_LEAD_MINUTES = 5
 
@@ -65,9 +70,15 @@ def rebuild_jobs(store: Store | None = None) -> None:
         if not item.enabled:
             continue
         cron_days = ",".join(str(d) for d in item.weekdays) if item.weekdays else "*"
-        # 预生成任务：推送时刻往前推 5 分钟（跨小时/跨日自动回绕）
-        pre_total = (item.hour * 60 + item.minute - _PREGEN_LEAD_MINUTES) % (24 * 60)
+        # 预生成任务：推送时刻往前推 5 分钟，跨小时/跨日都要回绕
+        raw = item.hour * 60 + item.minute - _PREGEN_LEAD_MINUTES
+        pre_total = raw % (24 * 60)
         pre_h, pre_m = divmod(pre_total, 60)
+        # 跨日回绕时星期也必须前移一天，否则 00:00-00:04 的时段会把预生成注册到
+        # 「推送日 23:5x」——比推送晚约 24 小时，永远命不中，每周白烧一次 LLM
+        pre_days = cron_days
+        if raw < 0 and item.weekdays:
+            pre_days = ",".join(str((d - 1) % 7) for d in item.weekdays)
         try:
             scheduler.add_job(
                 scheduled_push,
@@ -75,7 +86,7 @@ def rebuild_jobs(store: Store | None = None) -> None:
                 hour=item.hour,
                 minute=item.minute,
                 day_of_week=cron_days,
-                id=f"{_JOB_PREFIX}{item.id}",
+                id=f"{_PUSH_PREFIX}{item.id}",
                 replace_existing=True,
                 timezone=tz,
                 misfire_grace_time=300,
@@ -87,7 +98,7 @@ def rebuild_jobs(store: Store | None = None) -> None:
                 trigger="cron",
                 hour=pre_h,
                 minute=pre_m,
-                day_of_week=cron_days,
+                day_of_week=pre_days,
                 id=f"{_PREGEN_PREFIX}{item.id}",
                 replace_existing=True,
                 timezone=tz,
