@@ -444,3 +444,26 @@ def test_today_command_cooldown_dimensions() -> None:
     class _Other(_Ev):
         user_id = 999
     assert matcher.cooldown_remaining(_Other()) > 0
+
+
+# ---------------------------------------------------------------- 状态写入竞态
+
+
+def test_fetch_status_concurrent_updates_do_not_clobber(store) -> None:
+    """并发抓取时，状态文件的读-改-写必须串行化。
+
+    原实现是「读全量 → 改一项 → 整体覆写」，后写者覆盖先写者，
+    结果状态文件只留最后一个完成的源，WebUI 的「数据源健康」大面积显示无状态。
+    """
+    import asyncio
+
+    from nonebot_plugin_custom_news.fetcher import _load_fetch_status, _update_fetch_status
+
+    async def burst() -> None:
+        await asyncio.gather(
+            *[_update_fetch_status(store, f"src{i}", {"items": i}) for i in range(8)]
+        )
+
+    asyncio.run(burst())
+    status = _load_fetch_status(store)
+    assert sorted(k for k in status if k.startswith("src")) == [f"src{i}" for i in range(8)]

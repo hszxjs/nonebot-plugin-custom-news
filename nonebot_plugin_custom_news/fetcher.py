@@ -62,6 +62,19 @@ def _save_fetch_status(store: Store, status: dict[str, Any]) -> None:
         pass
 
 
+#: fetch_status.json 是「读全量 → 改一项 → 整体覆写」，并发抓取时后写者会覆盖先写者，
+#: 结果状态文件只留最后一个完成的源（WebUI 的「数据源健康」因此大面积显示无状态）。
+#: 用一把锁把读-改-写整体串起来。
+_status_lock = asyncio.Lock()
+
+
+async def _update_fetch_status(store: Store, source_id: str, patch: dict[str, Any]) -> None:
+    async with _status_lock:
+        status = _load_fetch_status(store)
+        status[source_id] = patch
+        _save_fetch_status(store, status)
+
+
 async def _fetch_one(
     store: Store, sd: SourceDef, limit: int, force_refresh: bool
 ) -> CardData | None:
@@ -122,21 +135,27 @@ async def _fetch_one(
             ),
             "utf-8",
         )
-        status[sd.id] = {
-            "last_ok": now.isoformat(timespec="seconds"),
-            "items": len(items),
-            "last_error": None,
-        }
-        _save_fetch_status(store, status)
+        await _update_fetch_status(
+            store,
+            sd.id,
+            {
+                "last_ok": now.isoformat(timespec="seconds"),
+                "items": len(items),
+                "last_error": None,
+            },
+        )
         return CardData(sd.id, sd.name, sd.emoji, sd.category, items, stale=False)
     except Exception as e:
         logger.warning(f"数据源 {sd.name}({sd.route}) 抓取失败: {e}")
-        status[sd.id] = {
-            "last_ok": status.get(sd.id, {}).get("last_ok"),
-            "items": 0,
-            "last_error": str(e),
-        }
-        _save_fetch_status(store, status)
+        await _update_fetch_status(
+            store,
+            sd.id,
+            {
+                "last_ok": status.get(sd.id, {}).get("last_ok"),
+                "items": 0,
+                "last_error": str(e),
+            },
+        )
         if cached and cached.get("items"):
             items = [HotItem(**i) for i in cached["items"]]
             return CardData(sd.id, sd.name, sd.emoji, sd.category, items[:limit], stale=True)
