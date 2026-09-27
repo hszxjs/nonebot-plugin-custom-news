@@ -397,6 +397,11 @@ async def render_preview(req: RenderPreviewReq, store: Store = Depends(require_a
     except Exception as e:
         logger.error(f"预览渲染失败: {e!r}")
         raise HTTPException(status_code=500, detail=f"渲染失败: {e!r}") from e
+    # 回传实际生效的渲染尺寸：用户填的值会被 resolve_render_size 收敛，
+    # 之前界面上没有任何反馈（填 3000 得到 2000 却不知道）
+    from ..renderer import _DEFAULT_DPR, resolve_render_size
+
+    css_width, dpr = resolve_render_size(store.config.general.render_width, _DEFAULT_DPR)
     return {
         "image": base64.b64encode(image).decode(),
         "cards": [
@@ -404,6 +409,8 @@ async def render_preview(req: RenderPreviewReq, store: Store = Depends(require_a
             for c in digest.cards
         ],
         "failed": digest.failed,
+        "empty": digest.empty_sources,
+        "render": {"width": css_width, "dpr": dpr},
     }
 
 
@@ -485,6 +492,7 @@ async def sources_refresh(store: Store = Depends(require_auth)) -> dict:
         "ok": len(digest.cards) > 0,
         "cards": [{"name": c.name, "count": len(c.items), "stale": c.stale} for c in digest.cards],
         "failed": digest.failed,
+        "empty": digest.empty_sources,
     }
 
 

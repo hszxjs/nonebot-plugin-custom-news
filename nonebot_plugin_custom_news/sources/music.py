@@ -42,7 +42,7 @@ async def fetch_netease_new(cache_dir: Path, limit: int = 10) -> list[HotItem]:
     rows = await netease_chart(cache_dir, limit=max(limit, 10))
     items = rows_to_items(rows, limit)
     if not items:
-        raise MusicSourceError("网易云新歌榜解析为空")
+        return []  # 合法但空 ≠ 失败（见 sources/dailyhot.py 的同类处理）
     return items
 
 
@@ -51,5 +51,5 @@ async def fetch_qq_new(cache_dir: Path, limit: int = 10) -> list[HotItem]:
     rows = await qq_chart(cache_dir, limit=max(limit, 10))
     items = rows_to_items(rows, limit)
     if not items:
-        raise MusicSourceError("QQ音乐新歌榜解析为空")
+        return []  # 合法但空 ≠ 失败（见 sources/dailyhot.py 的同类处理）
     return items

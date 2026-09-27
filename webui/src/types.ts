@@ -92,6 +92,11 @@ export interface GeneralSettings {
   analysis_avatar: string;
 }
 
+export interface DigestStatus {
+  failed: string[];
+  empty_sources?: string[];
+}
+
 export interface SourceSetting {
   enabled: boolean;
   limit: number;

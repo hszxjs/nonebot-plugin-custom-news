@@ -112,7 +112,9 @@ class DailyHotClient:
             if len(items) >= limit:
                 break
         if not items:
-            raise DailyHotError(f"{route} 未解析到任何条目")
+            # 合法但空（如该分类当天无内容）≠ 失败：返回空列表，由 fetcher 记入
+            # empty_sources，这样图上能区分「源坏了」与「今天没新闻」
+            return []
         return items
 
 

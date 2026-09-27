@@ -167,5 +167,5 @@ async def fetch_ai_iq(cache_dir: Path, limit: int = 10) -> list[Any]:
             title = f"{title}（{harness}）"
         items.append(HotItem(title=title, hot=int(round(r["iq"])), url=_SITE, alt_url=_SITE))
     if not items:
-        raise RuntimeError("codexradar 智商数据为空")
+        return []  # 合法但空 ≠ 失败
     return items
