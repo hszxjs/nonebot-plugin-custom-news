@@ -185,7 +185,7 @@ async def scheduled_push(schedule_id: str) -> None:
         try:
             await push_text_to_all(
                 store,
-                f"⚠️ 今日热点日报生成失败：{str(e)[:120]}\n"
+                "⚠️ 今日热点日报生成失败，详情见机器人日志。\n"
                 "可在 WebUI「数据源」页查看各源抓取状态。",
             )
         except Exception as notify_err:

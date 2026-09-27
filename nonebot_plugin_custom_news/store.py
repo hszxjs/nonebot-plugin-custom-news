@@ -132,8 +132,12 @@ class MusicChatSettings(BaseModel):
 
 class WebUIAuth(BaseModel):
     username: str = "admin"
+    #: 口令哈希：scrypt 自描述串，或旧版无盐 SHA-256（登录成功后透明重写）
     password_sha: str = ""
     secret: str = ""
+    #: 改密码时轮换：旧 secret 保留一段时间，让在用会话平滑过渡
+    secret_prev: str = ""
+    secret_rotated_at: float = 0.0
 
 
 class RuntimeConfig(BaseModel):
@@ -348,9 +352,11 @@ class Store:
 
     def _write(self, cfg: RuntimeConfig) -> None:
         tmp = self.config_path.with_suffix(".json.tmp")
-        tmp.write_text(
-            cfg.model_dump_json(indent=2), "utf-8"
-        )
+        tmp.write_text(cfg.model_dump_json(indent=2), "utf-8")
+        try:
+            os.chmod(tmp, 0o600)  # 内含 LLM Key、签名 secret、音乐 cookie
+        except OSError:
+            pass
         os.replace(tmp, self.config_path)
 
     async def save(self, cfg: RuntimeConfig | None = None) -> None:

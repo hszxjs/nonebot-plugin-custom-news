@@ -327,3 +327,120 @@ def test_rows_to_items_limit_non_positive() -> None:
     rows = [{"song": "a", "artists": "b", "jump_url": "u"}]
     assert rows_to_items(rows, 0) == []
     assert rows_to_items(rows, -3) == []
+
+
+# ---------------------------------------------------------------- 安全加固（2026-09-27 审计）
+
+
+def test_ssrf_guard_blocks_private_targets() -> None:
+    from nonebot_plugin_custom_news.sources.article import is_public_http_url
+
+    for bad in (
+        "http://127.0.0.1:6688/",
+        "http://localhost:8080/x",
+        "http://169.254.169.254/latest/meta-data/",
+        "http://10.0.0.1/",
+        "http://192.168.1.1/",
+        "file:///etc/passwd",
+        "ftp://example.com/x",
+        "",
+    ):
+        assert not is_public_http_url(bad), bad
+    # 字面公网 IP 不需要 DNS，保证测试可离线运行
+    assert is_public_http_url("https://93.184.216.34/news/1")
+
+
+def test_preset_background_must_be_known_id(tmp_path, monkeypatch) -> None:
+    """preset 只能取预设 id：绝对路径/`..` 曾能读本机任意 *.jpg 并内联进渲染图。"""
+    import pytest
+
+    from nonebot_plugin_custom_news.renderer import RenderError, resolve_background
+    from nonebot_plugin_custom_news.theme import BackgroundConfig
+
+    from nonebot_plugin_custom_news.theme import PRESET_BACKGROUNDS
+
+    class _Theme:
+        def __init__(self, value: str) -> None:
+            self.background = BackgroundConfig(type="preset", value=value)
+
+    # 合法预设 id 正常解析
+    ok_id = PRESET_BACKGROUNDS[0]["id"]
+    path = resolve_background(None, _Theme(ok_id))  # type: ignore[arg-type]
+    assert path.parent.name == "backgrounds"
+
+    # 路径穿越/绝对路径一律拒绝（旧实现只做 exists()，能读走本机任意 *.jpg）
+    for bad in ("/Users/x/Pictures/secret", "../../../etc/passwd", "..%2fsecret"):
+        with pytest.raises(RenderError):
+            resolve_background(None, _Theme(bad))  # type: ignore[arg-type]
+
+
+def test_password_hash_scrypt_and_legacy_upgrade(store) -> None:
+    import hashlib
+
+    from nonebot_plugin_custom_news.webui.auth import _hash_password, _verify_hash, verify_password
+
+    store.config.webui.username = "admin"
+    store.config.webui.password_sha = hashlib.sha256(b"legacy-pass").hexdigest()
+    # 旧的无盐 SHA-256 仍可登录，且登录成功后被透明重写为 scrypt
+    assert verify_password(store, "admin", "legacy-pass")
+    assert store.config.webui.password_sha.startswith("scrypt$")
+    assert _verify_hash(_hash_password("新口令"), "新口令")
+    assert not _verify_hash(_hash_password("新口令"), "别的口令")
+
+
+def test_password_change_rotates_secret_with_grace(store) -> None:
+    from nonebot_plugin_custom_news.webui.auth import (
+        _check_token,
+        change_password,
+        issue_token,
+    )
+
+    store.config.webui.secret = "old-secret"
+    token = issue_token(store, "admin")
+    assert _check_token(store, token)
+
+    change_password(store, "new-password-123")
+    assert store.config.webui.secret != "old-secret", "改密码必须轮换 secret"
+    # 宽限期内旧 Token 仍可用（不打断正在使用的会话），且新 Token 也可用
+    assert _check_token(store, token)
+    assert _check_token(store, issue_token(store, "admin"))
+
+    # 宽限期过后旧 Token 失效
+    store.config.webui.secret_rotated_at -= 3601
+    assert not _check_token(store, token)
+
+
+def test_login_failure_backoff(store) -> None:
+    import pytest
+
+    from nonebot_plugin_custom_news.webui.auth import (
+        note_login_failure,
+        note_login_success,
+        verify_login_allowed,
+    )
+
+    for _ in range(5):
+        note_login_failure("admin")
+    with pytest.raises(Exception):
+        verify_login_allowed("admin")
+    note_login_success("admin")
+    verify_login_allowed("admin")  # 成功后计数清零
+
+
+def test_today_command_cooldown_dimensions() -> None:
+    """用户与群两个维度各自计时。"""
+    from nonebot_plugin_custom_news import matcher
+
+    class _Ev:
+        group_id = 123
+        user_id = 456
+
+    ev = _Ev()
+    matcher._last_trigger.clear()
+    assert matcher.cooldown_remaining(ev) == 0
+    matcher.mark_triggered(ev)
+    assert matcher.cooldown_remaining(ev) > 0
+    # 同群换个人：群维度仍然拦住
+    class _Other(_Ev):
+        user_id = 999
+    assert matcher.cooldown_remaining(_Other()) > 0

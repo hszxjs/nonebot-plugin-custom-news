@@ -35,7 +35,15 @@ from ..store import (
     get_store,
 )
 from ..theme import PRESET_BACKGROUNDS, PRESET_THEMES, BackgroundConfig, Theme
-from .auth import change_password, issue_token, require_auth, verify_password
+from .auth import (
+    change_password,
+    issue_token,
+    note_login_failure,
+    note_login_success,
+    require_auth,
+    verify_login_allowed,
+    verify_password,
+)
 
 router = APIRouter(prefix="/custom-news/api")
 
@@ -115,8 +123,12 @@ class AnalyzeReq(BaseModel):
 @router.post("/auth/login")
 async def login(req: LoginReq) -> dict:
     store = get_store()
+    verify_login_allowed(req.username)
     if not verify_password(store, req.username, req.password):
+        note_login_failure(req.username)
+        logger.warning(f"WebUI 登录失败（用户名 {req.username!r}）")
         raise HTTPException(status_code=401, detail="用户名或密码错误")
+    note_login_success(req.username)
     return {"token": issue_token(store, req.username), "username": req.username}
 
 

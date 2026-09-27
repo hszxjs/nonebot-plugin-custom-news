@@ -5,6 +5,7 @@
 - 旧版（0.3~0.7）：template_to_pic()
 """
 
+import asyncio
 import hashlib
 import json
 from datetime import datetime
@@ -59,6 +60,13 @@ def resolve_background(store: Store, theme: Theme) -> Path:
         if path.exists():
             return path
         raise RenderError(f"上传背景图不存在: {theme.background.value}")
+    # preset 必须是预设 id，不能是路径：Path 拼接时绝对路径/`..` 会逃出背景目录，
+    # 已认证用户可借此把本机任意 *.jpg 内联进渲染图并推给所有群
+    from .theme import PRESET_BACKGROUNDS
+
+    preset_ids = {b["id"] for b in PRESET_BACKGROUNDS}
+    if theme.background.value not in preset_ids:
+        raise RenderError(f"预设背景不存在: {theme.background.value!r}")
     path = ASSETS_DIR / "backgrounds" / f"{theme.background.value}.jpg"
     if path.exists():
         return path
@@ -350,6 +358,11 @@ async def _render_via_htmlrender(
         ) from e
 
 
+#: 全局渲染串行化：单张渲染峰值内存可达 GB 级（3000px×dpr1.5 实测 4.35GB），
+#: 并发几张就能把内存打满并连带 NapCat 断连。冷却只抑制连发，信号量才是内存保护。
+_RENDER_SEMAPHORE = asyncio.Semaphore(1)
+
+
 #: 输出图体积阈值：超过则自动转 JPEG（NapCat 反向 WS 对大帧敏感，46MB 实测断连）
 _MAX_IMAGE_BYTES = 10 * 1024 * 1024
 
@@ -396,7 +409,8 @@ async def render_digest(store: Store, theme: Theme, digest: Digest) -> bytes:
     colors = resolve_colors(store, theme, bg_path)
     css_width, dpr = resolve_render_size(store.config.general.render_width, _DEFAULT_DPR)
     variables = build_variables(store, theme, digest, bg_path, colors, css_width)
-    data = await render_html(variables, css_width, dpr=dpr)
+    async with _RENDER_SEMAPHORE:
+        data = await render_html(variables, css_width, dpr=dpr)
     data = shrink_if_huge(data)
     _save_latest(store, data)
     logger.info(
@@ -559,9 +573,10 @@ async def render_analysis(store: Store, theme: Theme, analyses: list) -> bytes:
         variables.get("width", ANALYSIS_WIDTH), _DEFAULT_DPR
     )
     variables["width"] = css_width
-    data = await _render_via_htmlrender(
-        "analysis_chat.html", variables, css_width, dpr=dpr
-    )
+    async with _RENDER_SEMAPHORE:
+        data = await _render_via_htmlrender(
+            "analysis_chat.html", variables, css_width, dpr=dpr
+        )
     data = shrink_if_huge(data)
     latest = store.cache_dir / "latest_analysis.png"
     try:
