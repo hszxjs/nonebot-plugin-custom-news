@@ -9,7 +9,7 @@ import string
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from nonebot import logger, require
 
@@ -23,7 +23,7 @@ from .theme import PRESET_THEMES, Theme
 
 class GeneralSettings(BaseModel):
     dailyhot_api_url: str = "https://api-hot.imsyy.top"
-    render_width: int = 1280
+    render_width: int = Field(default=1280, ge=640, le=4096)
     cache_ttl: int = 1800
     timezone: str = "Asia/Shanghai"
     #: 自定义每日壁纸直链（留空使用必应每日壁纸）
@@ -38,6 +38,28 @@ class GeneralSettings(BaseModel):
     llm_follow_digest: bool = True
     #: 每次解析的新闻条数
     analysis_count: int = 3
+    #: 深读风格指令（人设/口吻，追加到内置 system prompt 之后；留空用内置通用风格）
+    llm_style_prompt: str = ""
+    #: 深读图里的署名
+    analysis_bot_name: str = "热点解读员"
+    #: 深读图的头像：data URI / http(s) 链接 / 本地图片路径；留空用内置 emoji 头像
+    analysis_avatar: str = ""
+
+    @field_validator("timezone")
+    @classmethod
+    def _check_timezone(cls, v: str) -> str:
+        """时区必须能被 ZoneInfo 解析。
+
+        非法时区会让 rebuild_jobs 的 add_job 抛异常，而它是「先全删再重建」，
+        会在写坏配置的瞬间让全部定时任务消失 —— 这里挡住入口。
+        """
+        from zoneinfo import ZoneInfo as _ZoneInfo
+
+        try:
+            _ZoneInfo(v)
+        except Exception as e:
+            raise ValueError(f"非法时区 {v!r}：{e}") from e
+        return v
 
 
 class SourceSetting(BaseModel):
@@ -69,6 +91,15 @@ class ScheduleItem(BaseModel):
     #: 使用的主题 id；留空使用当前激活主题
     theme_id: str | None = None
     enabled: bool = True
+
+    @field_validator("weekdays")
+    @classmethod
+    def _check_weekdays(cls, v: list[int]) -> list[int]:
+        """0-6 之外的值会变成非法 cron 表达式（如 day_of_week=7），先在这里挡掉。"""
+        bad = [d for d in v if not 0 <= d <= 6]
+        if bad:
+            raise ValueError(f"weekdays 只允许 0-6（0=周一），收到 {bad}")
+        return sorted(set(v))
 
 
 class PushTargetItem(BaseModel):

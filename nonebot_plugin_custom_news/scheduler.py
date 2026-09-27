@@ -4,8 +4,9 @@
 推送时刻直接发送已生成的深读图（失败回退为现场生成）。
 """
 
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from nonebot import logger, require
 
@@ -21,54 +22,90 @@ _PREGEN_PREFIX = "custom_news_pre_"
 _PREGEN_LEAD_MINUTES = 5
 
 
+def _today(store: Store) -> date:
+    """按配置时区取「今天」。
+
+    预生成文件名必须与调度时区同一口径：若进程时区是 UTC 而调度时区是 +08，
+    06:00 的推送会去找前一日算出的文件名，预生成永远命不中（每次现场生成）。
+    """
+    try:
+        tz = ZoneInfo(store.config.general.timezone)
+    except Exception:
+        return date.today()
+    return datetime.now(tz).date()
+
+
 def _pregen_file(store: Store, schedule_id: str) -> Path:
-    return store.cache_dir / f"pregen_{schedule_id}_{date.today():%Y%m%d}.png"
+    return store.cache_dir / f"pregen_{schedule_id}_{_today(store):%Y%m%d}.png"
 
 
 def rebuild_jobs(store: Store | None = None) -> None:
-    """按当前配置重建全部定时任务（配置变更后调用）。"""
+    """按当前配置重建全部定时任务（配置变更后调用）。
+
+    本函数是「先全删再重建」，因此任何异常中断都会让全部定时任务消失且无声。
+    时区先校验、单个时段单独兜底：坏配置只影响它自己，不拖垮其它时段。
+    """
     store = store or get_store()
+    tz = store.config.general.timezone
+    try:
+        ZoneInfo(tz)
+    except Exception as e:
+        logger.error(f"时区配置非法（{tz!r}），保留现有定时任务不重建: {e!r}")
+        return
+
     for job in scheduler.get_jobs():
         if job.id.startswith(_JOB_PREFIX):
             try:
                 scheduler.remove_job(job.id)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"移除旧定时任务 {job.id} 失败: {e!r}")
 
+    registered = 0
     for item in store.config.schedules:
         if not item.enabled:
             continue
         cron_days = ",".join(str(d) for d in item.weekdays) if item.weekdays else "*"
-        scheduler.add_job(
-            scheduled_push,
-            trigger="cron",
-            hour=item.hour,
-            minute=item.minute,
-            day_of_week=cron_days,
-            id=f"{_JOB_PREFIX}{item.id}",
-            replace_existing=True,
-            timezone=store.config.general.timezone,
-            args=[item.id],
-        )
         # 预生成任务：推送时刻往前推 5 分钟（跨小时/跨日自动回绕）
         pre_total = (item.hour * 60 + item.minute - _PREGEN_LEAD_MINUTES) % (24 * 60)
         pre_h, pre_m = divmod(pre_total, 60)
-        scheduler.add_job(
-            pre_generate_analysis,
-            trigger="cron",
-            hour=pre_h,
-            minute=pre_m,
-            day_of_week=cron_days,
-            id=f"{_PREGEN_PREFIX}{item.id}",
-            replace_existing=True,
-            timezone=store.config.general.timezone,
-            args=[item.id],
-        )
+        try:
+            scheduler.add_job(
+                scheduled_push,
+                trigger="cron",
+                hour=item.hour,
+                minute=item.minute,
+                day_of_week=cron_days,
+                id=f"{_JOB_PREFIX}{item.id}",
+                replace_existing=True,
+                timezone=tz,
+                misfire_grace_time=300,
+                coalesce=True,
+                args=[item.id],
+            )
+            scheduler.add_job(
+                pre_generate_analysis,
+                trigger="cron",
+                hour=pre_h,
+                minute=pre_m,
+                day_of_week=cron_days,
+                id=f"{_PREGEN_PREFIX}{item.id}",
+                replace_existing=True,
+                timezone=tz,
+                misfire_grace_time=300,
+                coalesce=True,
+                args=[item.id],
+            )
+        except Exception as e:
+            logger.error(f"注册定时任务 [{item.label}] 失败，跳过该时段: {e!r}")
+            continue
+        registered += 1
         logger.info(
             f"已注册定时推送 [{item.label}] "
             f"{item.hour:02d}:{item.minute:02d} weekdays={cron_days} "
             f"theme={item.theme_id or '默认'}（深读预生成 {pre_h:02d}:{pre_m:02d}）"
         )
+    if registered == 0:
+        logger.warning("没有任何定时任务注册成功，请检查「推送管理」里的时段配置")
 
 
 async def pre_generate_analysis(schedule_id: str) -> None:
@@ -134,3 +171,11 @@ async def scheduled_push(schedule_id: str) -> None:
                     logger.warning(f"[{item.label}] 深读失败提示也发送失败: {notify_err!r}")
     except Exception as e:
         logger.error(f"定时推送 [{item.label}] 失败: {e!r}")
+        try:
+            await push_text_to_all(
+                store,
+                f"⚠️ 今日热点日报生成失败：{str(e)[:120]}\n"
+                "可在 WebUI「数据源」页查看各源抓取状态。",
+            )
+        except Exception as notify_err:
+            logger.warning(f"[{item.label}] 日报失败提示也发送失败: {notify_err!r}")

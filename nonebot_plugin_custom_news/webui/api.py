@@ -27,6 +27,7 @@ from ..sources import BUILTIN_SOURCES, CATEGORY_LABELS
 from ..store import (
     CustomSourceDef,
     GeneralSettings,
+    MusicChatSettings,
     PushTargetItem,
     ScheduleItem,
     SourceSetting,
@@ -40,6 +41,29 @@ router = APIRouter(prefix="/custom-news/api")
 
 _ASSETS_BG_DIR = Path(__file__).parent.parent / "assets" / "backgrounds"
 _ALLOWED_EXT = {".jpg", ".jpeg", ".png", ".webp"}
+_MAX_UPLOAD_BYTES = 20 * 1024 * 1024
+
+#: 密钥类字段回传占位符：前端原样回传时视为「不修改」
+SECRET_MASK = "********"
+
+
+def _redact_config(store: Store) -> dict:
+    """回给客户端的配置：抹掉一切密钥类字段。
+
+    - `webui.password_sha` / `webui.secret`：前端用不到，直接不下发。secret 是签发
+      Token 的 HMAC 密钥，泄露即可伪造任意登录态，且改密码不会轮换它（无法挽回）
+    - `general.llm_api_key`：以占位符回传，前端原样回传时按「不修改」处理
+    - `music_accounts.*.cookie`：登录 cookie 等同账号凭据，只保留展示用字段
+    """
+    cfg = store.config
+    data = cfg.model_dump()
+    data["webui"] = {"username": cfg.webui.username}
+    data["general"]["llm_api_key"] = SECRET_MASK if cfg.general.llm_api_key else ""
+    data["music_accounts"] = {
+        k: {"cookie": "", "nickname": v.nickname, "logged_at": v.logged_at}
+        for k, v in cfg.music_accounts.items()
+    }
+    return data
 
 
 # ---------------------------------------------------------------- 模型
@@ -62,6 +86,8 @@ class ConfigUpdate(BaseModel):
     schedules: list[ScheduleItem] | None = None
     push_targets: list[PushTargetItem] | None = None
     active_theme_id: str | None = None
+    #: 之前漏了这个字段：前端保存「音乐设置」时发的 music_chat 被 pydantic 静默丢弃
+    music_chat: MusicChatSettings | None = None
 
 
 class RenderPreviewReq(BaseModel):
@@ -116,7 +142,7 @@ async def update_password(req: PasswordReq, store: Store = Depends(require_auth)
 @router.get("/config")
 async def get_config(store: Store = Depends(require_auth)) -> dict:
     return {
-        "config": store.config.model_dump(),
+        "config": _redact_config(store),
         "builtin_sources": [
             {
                 "id": s.id,
@@ -137,7 +163,13 @@ async def get_config(store: Store = Depends(require_auth)) -> dict:
 async def update_config(req: ConfigUpdate, store: Store = Depends(require_auth)) -> dict:
     cfg = store.config
     if req.general is not None:
-        cfg.general = req.general
+        # 按字段合并而非整体替换：调用方漏传的字段保持原值。
+        # 此前是整体替换，叠加「密钥以占位符回传」，保存一次设置就会把 API Key 清空。
+        patch = req.general.model_dump(exclude_unset=True)
+        if patch.get("llm_api_key") == SECRET_MASK:
+            patch.pop("llm_api_key")
+        # 用 model_validate 而非 model_copy，保证新值的校验器（时区等）仍然生效
+        cfg.general = GeneralSettings.model_validate({**cfg.general.model_dump(), **patch})
     if req.sources is not None:
         cfg.sources = req.sources
     if req.custom_sources is not None:
@@ -146,6 +178,8 @@ async def update_config(req: ConfigUpdate, store: Store = Depends(require_auth))
         cfg.schedules = req.schedules
     if req.push_targets is not None:
         cfg.push_targets = req.push_targets
+    if req.music_chat is not None:
+        cfg.music_chat = req.music_chat
     if req.active_theme_id is not None:
         if req.active_theme_id not in cfg.themes:
             raise HTTPException(status_code=400, detail="激活主题不存在")
@@ -282,9 +316,19 @@ async def upload_background(
     ext = Path(file.filename or "").suffix.lower()
     if ext not in _ALLOWED_EXT:
         raise HTTPException(status_code=400, detail=f"仅支持 {'/'.join(_ALLOWED_EXT)} 格式")
+    # 体积先判、再读：此前是先 await file.read() 落盘/读入内存后才检查，
+    # 超大请求体会先吃满内存（ASGI 层没有 body 上限）
+    if file.size is not None and file.size > _MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"图片不能超过 {_MAX_UPLOAD_BYTES // 1024 // 1024}MB",
+        )
     data = await file.read()
-    if len(data) > 20 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="图片不能超过 20MB")
+    if len(data) > _MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"图片不能超过 {_MAX_UPLOAD_BYTES // 1024 // 1024}MB",
+        )
     # 预缩放：超大背景图会让渲染产物膨胀（46MB PNG 实测拖垮 NapCat WS），
     # 宽超 2560px 一律缩到 2560 并转 JPEG
     try:
@@ -300,8 +344,9 @@ async def upload_background(
             im.save(out, "JPEG", quality=90, optimize=True)
             data = out.getvalue()
             ext = ".jpg"
-    except Exception:
-        pass
+    except Exception as e:
+        # 曾经静默 pass：非图片字节会被当成 .jpg 存库，直到渲染时才炸
+        logger.warning(f"背景图预处理失败（按原样保存）: {e!r}")
     name = f"bg_{datetime.now().strftime('%Y%m%d%H%M%S')}_{uuid.uuid4().hex[:6]}{ext}"
     (store.backgrounds_dir / name).write_bytes(data)
     return {"ok": True, "filename": name, "url": f"/custom-news/api/backgrounds/file/{name}"}
