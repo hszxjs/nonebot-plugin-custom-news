@@ -467,3 +467,42 @@ def test_fetch_status_concurrent_updates_do_not_clobber(store) -> None:
     asyncio.run(burst())
     status = _load_fetch_status(store)
     assert sorted(k for k in status if k.startswith("src")) == [f"src{i}" for i in range(8)]
+
+
+# ---------------------------------------------------------------- 推送重试
+
+
+def test_send_with_retry_retries_once_then_succeeds() -> None:
+    """单次抖动不该丢一条推送：第一次失败、第二次成功应视为成功。"""
+    import asyncio
+
+    from nonebot_plugin_custom_news.pusher import _send_with_retry
+
+    calls = {"n": 0}
+
+    async def flaky() -> None:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise RuntimeError("第一次抖动")
+
+    asyncio.run(_send_with_retry(flaky, label="测试", backoff=0))
+    assert calls["n"] == 2
+
+
+def test_send_with_retry_gives_up_and_raises() -> None:
+    """重试用尽后必须抛出，让调用方把失败目标记进 fail 列表（不能静默）。"""
+    import asyncio
+
+    import pytest
+
+    from nonebot_plugin_custom_news.pusher import _send_with_retry
+
+    calls = {"n": 0}
+
+    async def always_fail() -> None:
+        calls["n"] += 1
+        raise RuntimeError("一直失败")
+
+    with pytest.raises(RuntimeError):
+        asyncio.run(_send_with_retry(always_fail, label="测试", backoff=0))
+    assert calls["n"] == 2

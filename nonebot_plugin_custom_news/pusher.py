@@ -1,5 +1,6 @@
 """主动推送：遍历推送目标，逐个发送日报图（跨适配器）。"""
 
+import asyncio
 import json
 from datetime import datetime
 
@@ -62,6 +63,24 @@ async def remove_target(store: Store, target: Target) -> tuple[bool, str]:
     return False, label
 
 
+async def _send_with_retry(
+    make_coro, *, label: str, attempts: int = 2, backoff: float = 2.0
+) -> None:
+    """发送失败重试一次：单次抖动（网络/风控）不该直接丢掉一条推送。
+
+    每个目标此前只试一次，一次抖动就永久丢一条日报，且失败目标只在日志里出现。
+    """
+    for i in range(attempts):
+        try:
+            await make_coro()
+            return
+        except Exception:
+            if i == attempts - 1:
+                raise
+            logger.warning(f"推送目标「{label}」第 {i + 1} 次失败，{backoff:g}s 后重试")
+            await asyncio.sleep(backoff)
+
+
 async def push_image_to_all(store: Store, image: bytes) -> dict:
     """向全部启用的推送目标发送图片。"""
     targets = [t for t in store.config.push_targets if t.enabled]
@@ -79,7 +98,10 @@ async def push_image_to_all(store: Store, image: bytes) -> dict:
             continue
         for bot in get_bots().values():
             try:
-                await UniMessage.image(raw=image).send(target=target, bot=bot)
+                await _send_with_retry(
+                    lambda t=target, b=bot: UniMessage.image(raw=image).send(target=t, bot=b),
+                    label=item.label,
+                )
                 sent = True
                 break
             except Exception as e:
@@ -110,7 +132,10 @@ async def push_text_to_all(store: Store, text: str) -> dict:
         sent = False
         for bot in get_bots().values():
             try:
-                await UniMessage.text(text).send(target=target, bot=bot)
+                await _send_with_retry(
+                    lambda t=target, b=bot: UniMessage.text(text).send(target=t, bot=b),
+                    label=item.label,
+                )
                 sent = True
                 break
             except Exception:
