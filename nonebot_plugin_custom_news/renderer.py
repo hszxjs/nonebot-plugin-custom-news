@@ -97,9 +97,7 @@ async def resolve_background_async(store: Store, theme: Theme) -> Path:
     """异步解析背景（在线壁纸需要网络请求），渲染前调用。"""
     if theme.background.type == "wallpaper":
         try:
-            path, _ = await get_daily_wallpaper(
-                store.cache_dir, store.config.general.wallpaper_url
-            )
+            path, _ = await get_daily_wallpaper(store.cache_dir, store.config.general.wallpaper_url)
             return path
         except Exception as e:
             raise RenderError(f"每日壁纸获取失败: {e!r}") from e
@@ -168,7 +166,7 @@ def _card_rgb(card_bg: str) -> str:
     m = re.fullmatch(r"#([0-9a-fA-F]{3})", card_bg.strip())
     if m:
         h = m.group(1)
-        return f"{int(h[0]*2, 16)}, {int(h[1]*2, 16)}, {int(h[2]*2, 16)}"
+        return f"{int(h[0] * 2, 16)}, {int(h[1] * 2, 16)}, {int(h[2] * 2, 16)}"
     return "20, 24, 36"
 
 
@@ -238,9 +236,7 @@ def build_variables(
         "font_medium": _data_uri(
             FONT_DIR / "HarmonyOS_Sans_SC_Medium.woff2", "font/woff2", "medium"
         ),
-        "font_bold": _data_uri(
-            FONT_DIR / "HarmonyOS_Sans_SC_Bold.woff2", "font/woff2", "bold"
-        ),
+        "font_bold": _data_uri(FONT_DIR / "HarmonyOS_Sans_SC_Bold.woff2", "font/woff2", "bold"),
         "bg_url": _data_uri(bg_path, "image/jpeg"),
         "overlay_rgb": _overlay_rgb(theme.background.overlay_mode, colors.primary),
         "overlay_opacity": theme.background.overlay,
@@ -274,7 +270,6 @@ def build_variables(
 
 
 # ---------------------------------------------------------------- 渲染
-
 
 
 # ---------------------------------------------------------------- 兼容与防护
@@ -327,7 +322,7 @@ async def _render_via_htmlrender(
     try:
         from nonebot_plugin_htmlrender import render_template  # type: ignore
 
-        artifact = await render_template(
+        artifact = await render_template(  # type: ignore[call-arg]  0.8 签名，0.7.x 会 TypeError 后回退
             str(TEMPLATE_DIR),
             template_name,
             variables=template_vars,
@@ -390,17 +385,13 @@ def shrink_if_huge(image: bytes, max_bytes: int = _MAX_IMAGE_BYTES) -> bytes:
         return image
 
 
-async def render_html(
-    template_vars: dict, width: int, dpr: float = _DEFAULT_DPR
-) -> bytes:
+async def render_html(template_vars: dict, width: int, dpr: float = _DEFAULT_DPR) -> bytes:
     """调用 htmlrender 渲染模板为 PNG（新旧 API 兼容）。
 
     width/dpr 由调用方经 resolve_render_size() 收敛后传入，保证模板 CSS 宽度
     与光栅尺寸同源——只压 viewport 而页面本身还是宽的话，截图仍是宽图。
     """
-    return await _render_via_htmlrender(
-        "daily_digest.html", template_vars, width, dpr=dpr
-    )
+    return await _render_via_htmlrender("daily_digest.html", template_vars, width, dpr=dpr)
 
 
 async def render_digest(store: Store, theme: Theme, digest: Digest) -> bytes:
@@ -456,7 +447,6 @@ def build_analysis_variables(
     from datetime import datetime
     from zoneinfo import ZoneInfo
 
-    from .sources.dailyhot import format_hot  # noqa: F401（保持导入一致性）
 
     # 优先使用按背景提取后的配色（auto 模式），否则回退主题色板
     colors = colors_override or theme.palette.colors
@@ -514,9 +504,7 @@ def build_analysis_variables(
         "font_medium": _data_uri(
             FONT_DIR / "HarmonyOS_Sans_SC_Medium.woff2", "font/woff2", "medium"
         ),
-        "font_bold": _data_uri(
-            FONT_DIR / "HarmonyOS_Sans_SC_Bold.woff2", "font/woff2", "bold"
-        ),
+        "font_bold": _data_uri(FONT_DIR / "HarmonyOS_Sans_SC_Bold.woff2", "font/woff2", "bold"),
         "palette": colors.model_dump(),
         "page_bg_top": page_bg_top,
         "page_bg_bottom": page_bg_bottom,
@@ -569,14 +557,10 @@ async def render_analysis(store: Store, theme: Theme, analyses: list) -> bytes:
     variables = build_analysis_variables(
         store, theme, analyses, extra=bg_vars, colors_override=resolved
     )
-    css_width, dpr = resolve_render_size(
-        variables.get("width", ANALYSIS_WIDTH), _DEFAULT_DPR
-    )
+    css_width, dpr = resolve_render_size(variables.get("width", ANALYSIS_WIDTH), _DEFAULT_DPR)
     variables["width"] = css_width
     async with _RENDER_SEMAPHORE:
-        data = await _render_via_htmlrender(
-            "analysis_chat.html", variables, css_width, dpr=dpr
-        )
+        data = await _render_via_htmlrender("analysis_chat.html", variables, css_width, dpr=dpr)
     data = shrink_if_huge(data)
     latest = store.cache_dir / "latest_analysis.png"
     try:

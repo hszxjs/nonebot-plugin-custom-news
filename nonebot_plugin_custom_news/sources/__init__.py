@@ -57,9 +57,7 @@ BUILTIN_SOURCES: list[SourceDef] = [
     SourceDef("earthquake", "地震速报", "/earthquake", "fun", "🫨", False, 6),
     SourceDef("history-today", "历史上的今天", "/history", "fun", "🕰️", False, 6),
     # 音乐新歌（直连官方接口，不走 DailyHotApi）
-    SourceDef(
-        "netease-new", "网易云新歌榜", "", "music", "🎵", True, 10, "netease_music"
-    ),
+    SourceDef("netease-new", "网易云新歌榜", "", "music", "🎵", True, 10, "netease_music"),
     SourceDef("qq-new", "QQ音乐新歌榜", "", "music", "🎧", True, 10, "qq_music"),
     # AI 动态（直连公开接口）
     SourceDef("ai-iq", "AI 智商天梯", "", "tech", "🧠", True, 10, "ai_iq"),

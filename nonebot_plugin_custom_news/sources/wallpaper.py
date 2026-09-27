@@ -5,7 +5,6 @@ from datetime import datetime
 from pathlib import Path
 
 import httpx
-
 from nonebot import logger
 
 BING_API = "https://cn.bing.com/HPImageArchive.aspx"

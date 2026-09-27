@@ -9,9 +9,8 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
-from pydantic import BaseModel
-
 from nonebot import logger
+from pydantic import BaseModel
 
 from ..fetcher import fetch_digest
 from ..palette import extract_palette
@@ -232,9 +231,7 @@ async def get_theme(theme_id: str, store: Store = Depends(require_auth)) -> dict
 
 
 @router.put("/themes/{theme_id}")
-async def upsert_theme(
-    theme_id: str, theme: Theme, store: Store = Depends(require_auth)
-) -> dict:
+async def upsert_theme(theme_id: str, theme: Theme, store: Store = Depends(require_auth)) -> dict:
     if theme.id != theme_id:
         raise HTTPException(status_code=400, detail="主题 id 不一致")
     store.config.themes[theme_id] = theme
@@ -290,9 +287,7 @@ async def list_backgrounds(store: Store = Depends(require_auth)) -> dict:
     uploaded = []
     for p in store.backgrounds_dir.iterdir():
         if p.is_file() and p.suffix.lower() in _ALLOWED_EXT:
-            uploaded.append(
-                {"name": p.name, "url": f"/custom-news/api/backgrounds/file/{p.name}"}
-            )
+            uploaded.append({"name": p.name, "url": f"/custom-news/api/backgrounds/file/{p.name}"})
     return {"preset": preset, "uploaded": uploaded}
 
 
@@ -351,7 +346,7 @@ async def upload_background(
         im = Image.open(_io.BytesIO(data))
         if im.width > 2560:
             h = int(im.height * 2560 / im.width)
-            im = im.convert("RGB").resize((2560, h), Image.LANCZOS)
+            im = im.convert("RGB").resize((2560, h), Image.LANCZOS)  # type: ignore[attr-defined]
             out = _io.BytesIO()
             im.save(out, "JPEG", quality=90, optimize=True)
             data = out.getvalue()
@@ -488,10 +483,7 @@ async def sources_refresh(store: Store = Depends(require_auth)) -> dict:
     digest = await fetch_digest(store, force_refresh=True)
     return {
         "ok": len(digest.cards) > 0,
-        "cards": [
-            {"name": c.name, "count": len(c.items), "stale": c.stale}
-            for c in digest.cards
-        ],
+        "cards": [{"name": c.name, "count": len(c.items), "stale": c.stale} for c in digest.cards],
         "failed": digest.failed,
     }
 
@@ -507,10 +499,18 @@ async def llm_test(store: Store = Depends(require_auth)) -> dict:
     try:
         reply = await _chat(g, "回复两个字：正常")
     except Exception as e:
-        return {"ok": False, "url": _chat_completions_url(g.llm_base_url),
-                "model": g.llm_model, "error": str(e)[:300]}
-    return {"ok": True, "url": _chat_completions_url(g.llm_base_url),
-            "model": g.llm_model, "reply": (reply or "")[:60]}
+        return {
+            "ok": False,
+            "url": _chat_completions_url(g.llm_base_url),
+            "model": g.llm_model,
+            "error": str(e)[:300],
+        }
+    return {
+        "ok": True,
+        "url": _chat_completions_url(g.llm_base_url),
+        "model": g.llm_model,
+        "reply": (reply or "")[:60],
+    }
 
 
 @router.post("/llm/analyze")

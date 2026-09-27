@@ -1,21 +1,16 @@
 """音乐榜单富数据：封面 / 热评 / 可播放链接（网易云 + QQ音乐），带 TTL 缓存。"""
 
-import json
 import re
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 import httpx
-
 from nonebot import logger
 
+from ._shared import UA_IPHONE as _UA
 from ._shared import load_ttl_cache, save_ttl_cache, truncate
 
-from . import netease_auth, qqmusic_auth
-
-from ._shared import UA_IPHONE as _UA
 CACHE_TTL = 30 * 60  # 榜单/评论/播放链接 30 分钟
 
 NETEASE_NEW_LIST = 3779629
@@ -151,9 +146,7 @@ async def netease_play_url(song_id: str, cookie: str = "") -> str:
     outer = f"https://music.163.com/song/media/outer/url?id={song_id}.mp3"
     try:
         async with httpx.AsyncClient(timeout=10.0, follow_redirects=False) as client:
-            resp = await client.head(
-                outer, headers={"User-Agent": _UA, "Range": "bytes=0-1"}
-            )
+            resp = await client.head(outer, headers={"User-Agent": _UA, "Range": "bytes=0-1"})
             if resp.status_code in (200, 206):
                 return outer
             if resp.status_code in (301, 302, 303, 307):
@@ -255,9 +248,7 @@ async def qq_comments(songid: str) -> list[SongComment]:
             if len(text) < 2:
                 continue
             out.append(
-                SongComment(
-                    nick=_short(nick, 12), text=text, likes=int(c.get("praisenum") or 0)
-                )
+                SongComment(nick=_short(nick, 12), text=text, likes=int(c.get("praisenum") or 0))
             )
             if len(out) >= 3:
                 break
@@ -311,9 +302,7 @@ async def qq_play_url(songmid: str, cookie: str = "") -> str:
 # ---------------------------------------------------------------- 统一入口
 
 
-async def get_platform_songs(
-    platform: str, store, limit: int = 10
-) -> list[SongMeta]:
+async def get_platform_songs(platform: str, store, limit: int = 10) -> list[SongMeta]:
     """获取某平台新歌榜（含封面/热评/播放链接），全部降级保证卡片可用。"""
     accounts = getattr(store.config, "music_accounts", None) or {}
     ne_cookie = (accounts.get("netease").cookie if accounts.get("netease") else "") or ""

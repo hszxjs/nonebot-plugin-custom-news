@@ -2,7 +2,6 @@
 
 import trafilatura
 from httpx import AsyncClient
-
 from nonebot import logger
 
 from ._shared import UA_IPHONE as _UA

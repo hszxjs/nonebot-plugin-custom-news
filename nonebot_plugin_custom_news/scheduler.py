@@ -122,9 +122,7 @@ def rebuild_jobs(store: Store | None = None) -> None:
 async def pre_generate_analysis(schedule_id: str) -> None:
     """推送前 5 分钟预生成「今日深读」，落盘待推送任务取用。"""
     store = get_store()
-    item = next(
-        (s for s in store.config.schedules if s.id == schedule_id and s.enabled), None
-    )
+    item = next((s for s in store.config.schedules if s.id == schedule_id and s.enabled), None)
     if item is None:
         return
     if not store.config.general.llm_follow_digest or not store.config.general.llm_api_key.strip():
@@ -144,18 +142,14 @@ async def pre_generate_analysis(schedule_id: str) -> None:
 
 async def scheduled_push(schedule_id: str) -> None:
     store = get_store()
-    item = next(
-        (s for s in store.config.schedules if s.id == schedule_id and s.enabled), None
-    )
+    item = next((s for s in store.config.schedules if s.id == schedule_id and s.enabled), None)
     if item is None:
         logger.warning(f"定时任务 {schedule_id} 已不存在或被禁用，跳过")
         return
     try:
         image, _ = await generate_digest_image(store, theme_id=item.theme_id)
         result = await push_image_to_all(store, image)
-        logger.info(
-            f"定时推送 [{item.label}] 完成: 成功 {result['ok']}/{result['total']}"
-        )
+        logger.info(f"定时推送 [{item.label}] 完成: 成功 {result['ok']}/{result['total']}")
         # 深读：优先发预生成图；无预生成（未开启/失败/过期）时现场生成兜底；
         # 任何失败都向推送目标发文字提示，绝不能静默断更
         if store.config.general.llm_follow_digest and store.config.general.llm_api_key.strip():

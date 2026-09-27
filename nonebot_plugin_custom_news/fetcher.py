@@ -81,9 +81,7 @@ async def _fetch_one(
         if (now - fetched_at).total_seconds() < max(ttl, 0):
             items = [HotItem(**i) for i in cached.get("items", [])]
             if items:
-                return CardData(
-                    sd.id, sd.name, sd.emoji, sd.category, items, stale=False
-                )
+                return CardData(sd.id, sd.name, sd.emoji, sd.category, items, stale=False)
 
     status = _load_fetch_status(store)
     try:
@@ -157,9 +155,7 @@ async def fetch_digest(store: Store, force_refresh: bool = False) -> Digest:
         if cs.enabled:
             enabled.append(
                 (
-                    SourceDef(
-                        cs.id, cs.name, cs.route, cs.category, cs.emoji, True, cs.limit
-                    ),
+                    SourceDef(cs.id, cs.name, cs.route, cs.category, cs.emoji, True, cs.limit),
                     cs.limit,
                 )
             )

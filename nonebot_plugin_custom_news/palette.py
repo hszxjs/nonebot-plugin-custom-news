@@ -27,9 +27,7 @@ def hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
 
 
 def _rgb_to_hex(r: int, g: int, b: int) -> str:
-    return "#{:02x}{:02x}{:02x}".format(
-        round(_clamp(r, 0, 255)), round(_clamp(g, 0, 255)), round(_clamp(b, 0, 255))
-    )
+    return f"#{round(_clamp(r, 0, 255)):02x}{round(_clamp(g, 0, 255)):02x}{round(_clamp(b, 0, 255)):02x}"
 
 
 def rgb_to_hsl(r: int, g: int, b: int) -> tuple[float, float, float]:
@@ -57,9 +55,7 @@ def contrast_ratio(rgb1: tuple[int, int, int], rgb2: tuple[int, int, int]) -> fl
     return (lighter + 0.05) / (darker + 0.05)
 
 
-def ensure_contrast(
-    fg_hex: str, bg_rgb: tuple[int, int, int], min_ratio: float = 4.5
-) -> str:
+def ensure_contrast(fg_hex: str, bg_rgb: tuple[int, int, int], min_ratio: float = 4.5) -> str:
     """在保持色相的前提下调整亮度，直到前景与背景对比度达标。"""
     r, g, b = hex_to_rgb(fg_hex)
     h, s, l = rgb_to_hsl(r, g, b)
@@ -74,9 +70,7 @@ def ensure_contrast(
     return _rgb_to_hex(r, g, b)
 
 
-def _mix(
-    c1: tuple[int, int, int], c2: tuple[int, int, int], w2: float
-) -> tuple[int, int, int]:
+def _mix(c1: tuple[int, int, int], c2: tuple[int, int, int], w2: float) -> tuple[int, int, int]:
     w1 = 1 - w2
     return (
         round(c1[0] * w1 + c2[0] * w2),
@@ -88,9 +82,7 @@ def _mix(
 # ---------------------------------------------------------------- 主提取逻辑
 
 
-def _composited_thumb(
-    image_path: str | Path, overlay_mode: str, alpha: float
-) -> "Image.Image":
+def _composited_thumb(image_path: str | Path, overlay_mode: str, alpha: float) -> "Image.Image":
     """生成叠加了遮罩的小尺寸副本，供取色与亮度统计使用。"""
     overlay_rgb = (255, 255, 255) if overlay_mode == "light" else (12, 14, 24)
     img = Image.open(image_path).convert("RGB")
@@ -140,16 +132,10 @@ def extract_palette(
 
     stat = ImageStat.Stat(thumb)
     mean_rgb = (round(stat.mean[0]), round(stat.mean[1]), round(stat.mean[2]))
-    is_light_bg = (
-        contrast_ratio((0, 0, 0), mean_rgb) > contrast_ratio((255, 255, 255), mean_rgb)
-    )
+    is_light_bg = contrast_ratio((0, 0, 0), mean_rgb) > contrast_ratio((255, 255, 255), mean_rgb)
 
     # 主色：优先挑选饱和鲜艳的候选色（跳过接近纯黑/纯白的噪点色）
-    vivid = [
-        c
-        for c in all_colors
-        if _is_vivid(c) and 0.12 < relative_luminance(*c) < 0.92
-    ]
+    vivid = [c for c in all_colors if _is_vivid(c) and 0.12 < relative_luminance(*c) < 0.92]
     vivid.sort(
         key=lambda c: rgb_to_hsl(*c)[1] * (1.1 - abs(relative_luminance(*c) - 0.5)),
         reverse=True,

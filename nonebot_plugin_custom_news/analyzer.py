@@ -2,12 +2,10 @@
 
 import json
 import random
-import re
 from dataclasses import dataclass, field
 from typing import Any
 
 import httpx
-
 from nonebot import logger
 
 from .fetcher import Digest
@@ -86,11 +84,7 @@ def pick_candidates(
 
     Returns: [(source_name, emoji, title, url, alt_url), ...]
     """
-    cards = [
-        c
-        for c in digest.cards
-        if c.category in _ANALYSIS_CATEGORY_PRIORITY and c.items
-    ]
+    cards = [c for c in digest.cards if c.category in _ANALYSIS_CATEGORY_PRIORITY and c.items]
     cards.sort(key=lambda c: _ANALYSIS_CATEGORY_PRIORITY[c.category])
 
     picked: list[tuple[str, str, str, str | None, str | None]] = []
@@ -102,9 +96,7 @@ def pick_candidates(
                 break
             if round_idx < len(card.items):
                 item = card.items[round_idx]
-                picked.append(
-                    (card.name, card.emoji, item.title, item.url, item.alt_url)
-                )
+                picked.append((card.name, card.emoji, item.title, item.url, item.alt_url))
                 progressed = True
         if not progressed:
             break
@@ -137,7 +129,9 @@ def _parse_llm_json(content: str) -> dict[str, Any]:
     for key in ("event", "background", "impact", "remark"):
         data[key] = str(data.get(key) or "").strip()
     points = data.get("points")
-    data["points"] = [str(p).strip() for p in points if str(p).strip()][:4] if isinstance(points, list) else []
+    data["points"] = (
+        [str(p).strip() for p in points if str(p).strip()][:4] if isinstance(points, list) else []
+    )
     return data
 
 
@@ -149,9 +143,7 @@ def _chat_completions_url(base_url: str) -> str:
     return base + "/chat/completions"
 
 
-async def _chat(
-    general: Any, user_prompt: str, style: str | None = None
-) -> str:
+async def _chat(general: Any, user_prompt: str, style: str | None = None) -> str:
     url = _chat_completions_url(general.llm_base_url)
     headers = {"Authorization": f"Bearer {general.llm_api_key.strip()}"}
     system_content = _system_prompt(general)
@@ -200,9 +192,7 @@ async def _chat(
                 if err_msg and "balance" in err_msg.lower():
                     raise RuntimeError(f"LLM 接口拒绝: {err_msg}")
                 if attempt < len(backoffs) - 1:
-                    last_error = RuntimeError(
-                        f"API 限流/服务波动({resp.status_code})，重试中"
-                    )
+                    last_error = RuntimeError(f"API 限流/服务波动({resp.status_code})，重试中")
                     continue
                 raise RuntimeError(
                     f"API 限流/服务波动({resp.status_code}): {err_msg or '请稍后再试'}"
@@ -247,9 +237,7 @@ async def run_analysis(store: Store, count: int | None = None) -> list[Analysis]
             import asyncio
 
             await asyncio.sleep(2.5)
-        ana = Analysis(
-            source_name=cand[0], emoji=cand[1], title=cand[2], url=cand[3]
-        )
+        ana = Analysis(source_name=cand[0], emoji=cand[1], title=cand[2], url=cand[3])
         try:
             if mock_mode:
                 data = _mock_analysis(cand[2])
@@ -264,9 +252,7 @@ async def run_analysis(store: Store, count: int | None = None) -> list[Analysis]
                     if article:
                         break
                 if not article:
-                    logger.info(
-                        f"深读跳过（无正文）: [{cand[0]}] {cand[2][:24]}"
-                    )
+                    logger.info(f"深读跳过（无正文）: [{cand[0]}] {cand[2][:24]}")
                     continue
                 ana.article_chars = len(article)
                 content = await _chat(

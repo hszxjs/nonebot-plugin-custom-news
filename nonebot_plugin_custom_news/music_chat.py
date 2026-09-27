@@ -6,7 +6,6 @@
 """
 
 from datetime import datetime
-from zoneinfo import ZoneInfo
 
 from nonebot import logger
 
@@ -18,7 +17,7 @@ from nonebot_plugin_alconna.builtins.uniseg.music_share import (  # noqa: F401
 from nonebot_plugin_alconna.uniseg import CustomNode, Reference, UniMessage
 
 from .sources.music_meta import SongMeta, get_platform_songs
-from .store import Store
+from .store import Store, get_store
 
 PLATFORM_LABEL = {"netease": "网易云新歌榜", "qq": "QQ音乐新歌榜"}
 _BOT_NAME = "热点日报酱"
@@ -77,9 +76,7 @@ async def build_platform_chat(
             )
         )
         if cfg.comments:
-            nodes.append(
-                CustomNode(uid=_BOT_UID, name=_BOT_NAME, content=_fmt_comments_text(s))
-            )
+            nodes.append(CustomNode(uid=_BOT_UID, name=_BOT_NAME, content=_fmt_comments_text(s)))
     return UniMessage(Reference(nodes=nodes)), songs
 
 
@@ -116,15 +113,13 @@ async def send_music_chats(
 
 async def _send_flat(send_one, platform: str, songs: list[SongMeta]) -> None:
     """逐条降级发送。"""
-    cfg = store.config.music_chat
+    cfg = get_store().config.music_chat
     await send_one(UniMessage.text(_fmt_chart_text(platform, songs)))
     for s in songs:
         try:
             await send_one(UniMessage(_music_card(s)))
         except Exception as e:
             logger.warning(f"音乐卡片发送失败 {s.song}: {e!r}，降级文字")
-            await send_one(
-                UniMessage.text(f"🎵 {s.song} - {s.artists}\n{s.jump_url}")
-            )
+            await send_one(UniMessage.text(f"🎵 {s.song} - {s.artists}\n{s.jump_url}"))
         if cfg.comments:
             await send_one(UniMessage.text(_fmt_comments_text(s)))

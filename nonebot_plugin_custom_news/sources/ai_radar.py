@@ -10,8 +10,6 @@
 避免「同一模型两个版本」误导读者。
 """
 
-import json
-import time
 from pathlib import Path
 from typing import Any
 
@@ -81,7 +79,7 @@ def _normalize(model_id: str) -> str:
     low = raw.lower()
     for pref in ("dsh-",):
         if low.startswith(pref):
-            raw = raw[len(pref):]
+            raw = raw[len(pref) :]
             break
     return raw
 
@@ -130,9 +128,7 @@ def dedupe_family(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if len(group) == 1:
             picked.append(group[0])
             continue
-        exact = next(
-            (g for g in group if g["model"].split("@")[0] == _base), None
-        )
+        exact = next((g for g in group if g["model"].split("@")[0] == _base), None)
         picked.append(exact or max(group, key=lambda g: g["iq"]))
     picked.sort(key=lambda r: -r["iq"])
     return picked
@@ -169,9 +165,7 @@ async def fetch_ai_iq(cache_dir: Path, limit: int = 10) -> list[Any]:
         harness = _harness_of(r["model"])
         if harness:
             title = f"{title}（{harness}）"
-        items.append(
-            HotItem(title=title, hot=int(round(r["iq"])), url=_SITE, alt_url=_SITE)
-        )
+        items.append(HotItem(title=title, hot=int(round(r["iq"])), url=_SITE, alt_url=_SITE))
     if not items:
         raise RuntimeError("codexradar 智商数据为空")
     return items

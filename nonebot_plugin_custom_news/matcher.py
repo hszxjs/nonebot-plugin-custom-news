@@ -2,10 +2,9 @@
 
 import time
 
-from nonebot import on_command
+from nonebot import logger, on_command
 from nonebot.adapters import Bot, Event
 from nonebot.matcher import Matcher
-
 from nonebot_plugin_alconna import UniMessage, get_target
 
 from .pusher import add_target, remove_target
@@ -18,16 +17,12 @@ today_cmd = on_command(
     priority=20,
     block=True,
 )
-subscribe_cmd = on_command(
-    "订阅热点", aliases={"热点订阅"}, priority=20, block=True
-)
+subscribe_cmd = on_command("订阅热点", aliases={"热点订阅"}, priority=20, block=True)
 unsubscribe_cmd = on_command(
     "退订热点", aliases={"取消订阅热点", "热点退订"}, priority=20, block=True
 )
 help_cmd = on_command("热点帮助", aliases={"热点指令"}, priority=20, block=True)
-music_cmd = on_command(
-    "新歌榜", aliases={"音乐榜", "新歌速递"}, priority=20, block=True
-)
+music_cmd = on_command("新歌榜", aliases={"音乐榜", "新歌速递"}, priority=20, block=True)
 
 _HELP_TEXT = (
     "📖 全网热点日报指令：\n"
@@ -61,10 +56,7 @@ def _cooldown_keys(event: object) -> list[str]:
 def cooldown_remaining(event: object, now: float | None = None) -> int:
     """还有多少秒才能再次触发（0 表示可触发）。纯函数，便于测试。"""
     now = time.time() if now is None else now
-    waits = [
-        _COOLDOWN_SECONDS - (now - _last_trigger.get(k, 0.0))
-        for k in _cooldown_keys(event)
-    ]
+    waits = [_COOLDOWN_SECONDS - (now - _last_trigger.get(k, 0.0)) for k in _cooldown_keys(event)]
     remaining = max([w for w in waits if w > 0], default=0.0)
     return int(remaining)
 
@@ -101,7 +93,7 @@ async def handle_subscribe(bot: Bot, event: Event, matcher: Matcher) -> None:
     added, label = await add_target(store, target)
     if added:
         await matcher.finish(f"✅ 订阅成功！「{label}」将在每个定时时段收到热点日报")
-    await matcher.finish(f"本会话已在订阅列表中（已重新启用），无需重复订阅")
+    await matcher.finish("本会话已在订阅列表中（已重新启用），无需重复订阅")
 
 
 @unsubscribe_cmd.handle()

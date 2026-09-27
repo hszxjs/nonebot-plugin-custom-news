@@ -9,9 +9,8 @@ import string
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, Field, field_validator
-
 from nonebot import logger, require
+from pydantic import BaseModel, Field, field_validator
 
 require("nonebot_plugin_localstore")
 from nonebot_plugin_localstore import get_plugin_cache_dir, get_plugin_data_dir
@@ -116,6 +115,7 @@ class PushTargetItem(BaseModel):
 
 class MusicAccount(BaseModel):
     """音乐平台登录态（cookie 存本机，WebUI 展示脱敏）。"""
+
     cookie: str = ""
     nickname: str = ""
     logged_at: str = ""
@@ -154,6 +154,7 @@ class RuntimeConfig(BaseModel):
     #: 配置结构版本（用于自动迁移；缺失该字段的旧配置视为 1）
     version: int = 1
 
+
 #: 当前配置结构版本
 CONFIG_VERSION = 3
 
@@ -177,9 +178,7 @@ class Store:
             old = self.config.general.dailyhot_api_url
             self.config.general.dailyhot_api_url = env_url
             self._write(self.config)
-            logger.info(
-                f"dailyhot_api_url 已由 .env 接管: {old} → {env_url}"
-            )
+            logger.info(f"dailyhot_api_url 已由 .env 接管: {old} → {env_url}")
 
     # ------------------------------------------------------------ 读写
 
@@ -188,9 +187,7 @@ class Store:
         # （否则 _store 永远为 None，WebUI 与命令全 500，且重启也不自愈）
         env_width = self.plugin_config.custom_news_render_width
         if not 640 <= env_width <= 4096:
-            logger.warning(
-                f".env 的 custom_news_render_width={env_width} 超出 640-4096，已收敛"
-            )
+            logger.warning(f".env 的 custom_news_render_width={env_width} 超出 640-4096，已收敛")
             env_width = min(max(env_width, 640), 4096)
         env_tz = self.plugin_config.custom_news_timezone
         try:

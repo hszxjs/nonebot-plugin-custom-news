@@ -1,6 +1,6 @@
 """nonebot-plugin-custom-news：全网热点日报。"""
 
-from nonebot import require, get_driver
+from nonebot import get_driver, require
 
 require("nonebot_plugin_apscheduler")
 require("nonebot_plugin_localstore")
@@ -54,12 +54,10 @@ def _inject_htmlrender_allowed_paths() -> None:
         local["allowed_paths"] = allowed
         resources["local_access"] = local
         render["resources"] = resources
-        cfg.render = render
+        cfg.render = render  # type: ignore[attr-defined]
         logger.debug(f"已为 htmlrender 预配置: provider={render['provider']}, 白名单={allowed}")
     except Exception as e:  # noqa: BLE001
-        logger.warning(
-            f"预配置 htmlrender 失败（渲染可能无法访问字体/背景）: {e!r}"
-        )
+        logger.warning(f"预配置 htmlrender 失败（渲染可能无法访问字体/背景）: {e!r}")
 
 
 _inject_htmlrender_allowed_paths()

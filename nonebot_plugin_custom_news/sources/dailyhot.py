@@ -15,13 +15,11 @@ from dataclasses import dataclass
 
 import httpx
 
-from nonebot import logger
-
 #: 上游偶发返回的垃圾标题（本地文件名/纯链接/占位文本等）
 _JUNK_TITLE_PATTERNS = (
-    re.compile(r"^[a-zA-Z]:[\/]"),          # Windows 路径
+    re.compile(r"^[a-zA-Z]:[\/]"),  # Windows 路径
     re.compile(r"^file://", re.I),
-    re.compile(r"^https?://\S+$"),            # 纯链接
+    re.compile(r"^https?://\S+$"),  # 纯链接
     re.compile(r"\.(html?|php|jsp|asp|md|txt)$", re.I),
     re.compile(r"^(本地文件|网页文件|文档|新建文档|untitled|无标题|标题|test)\s*$", re.I),
 )

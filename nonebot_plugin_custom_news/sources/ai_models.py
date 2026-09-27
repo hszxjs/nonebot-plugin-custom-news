@@ -8,7 +8,6 @@
 """
 
 import json
-import time
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -80,9 +79,7 @@ async def fetch_ai_models(store: Any, limit: int = 10) -> list[Any]:
 
     if not seen:
         # 首次运行：只建立基线
-        baseline_file.write_text(
-            json.dumps(sorted(catalog.keys()), ensure_ascii=False), "utf-8"
-        )
+        baseline_file.write_text(json.dumps(sorted(catalog.keys()), ensure_ascii=False), "utf-8")
         return []
 
     cutoff = (date.today() - timedelta(days=_ANNOUNCE_WINDOW_DAYS)).isoformat()

@@ -185,9 +185,7 @@ PRESET_THEMES: dict[str, Theme] = {
     "dusk": Theme(
         id="dusk",
         name="暮金",
-        background=BackgroundConfig(
-            type="preset", value="dusk", overlay=0.42, overlay_mode="dark"
-        ),
+        background=BackgroundConfig(type="preset", value="dusk", overlay=0.42, overlay_mode="dark"),
         palette=PaletteConfig(
             mode="auto",
             colors=PaletteColors(

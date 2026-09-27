@@ -26,12 +26,12 @@ import urllib.parse
 from typing import Any
 
 import httpx
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.asymmetric.x25519 import (
     X25519PrivateKey,
     X25519PublicKey,
 )
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 _BASE62 = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 _PRESET_KEY = b"0CoJUm6Qyw8W8jud"
@@ -60,8 +60,7 @@ _XEAPI_STATIC_KEY = bytes.fromhex(
     "ab1d5a430f6bb04a3f01e81ddd72bd916d5ce591248ac128714806d7f8fb1b84"
 )
 _XEAPI_SIGN_KEY = (
-    "mUHCwVNWJbunMqAHf5MImuirT6plvs6VSFW62MGHstFQxhBGdEoIhLItH3djc4"
-    "+FB/OKty3+lL2rGeoFBpVe5g=="
+    "mUHCwVNWJbunMqAHf5MImuirT6plvs6VSFW62MGHstFQxhBGdEoIhLItH3djc4+FB/OKty3+lL2rGeoFBpVe5g=="
 )
 _EAPI_KEY = b"e82ckenh8dichen8"
 _ID_XOR_KEY = "3go8&$8*3*3h0k(2)2"
@@ -129,10 +128,9 @@ def _xeapi_sign(timestamp: str, nonce: str) -> str:
 
 def _cloudmusic_dll_encode_id(device_id: str) -> str:
     xored = "".join(
-        chr(ord(ch) ^ ord(_ID_XOR_KEY[i % len(_ID_XOR_KEY)]))
-        for i, ch in enumerate(device_id)
+        chr(ord(ch) ^ ord(_ID_XOR_KEY[i % len(_ID_XOR_KEY)])) for i, ch in enumerate(device_id)
     )
-    md5_raw = hashlib.md5(xored.encode()).digest()
+    md5_raw = hashlib.md5(xored.encode()).digest()  # nosec B324 - 网易云 weapi 协议规定使用 MD5，非本插件可改
     return base64.b64encode(md5_raw).decode()
 
 
@@ -204,9 +202,7 @@ def _build_xeapi_plaintext(uri: str, data: dict[str, Any]) -> str:
     return json.dumps(fields, separators=(",", ":"))
 
 
-def _xeapi_encrypt(
-    uri: str, data: dict[str, Any], key_state: dict[str, Any]
-) -> dict[str, str]:
+def _xeapi_encrypt(uri: str, data: dict[str, Any], key_state: dict[str, Any]) -> dict[str, str]:
     dynamic_key = secrets.token_bytes(16)
     plaintext = _build_xeapi_plaintext(uri, data).encode()
 
@@ -292,9 +288,7 @@ async def _ensure_anonymous() -> None:
             device_id = base["deviceId"]
             key_state = await _xeapi_fetch_public_key(device_id)
             username = _encode_device_username(device_id)
-            body = _xeapi_encrypt(
-                "/api/register/anonimous", {"username": username}, key_state
-            )
+            body = _xeapi_encrypt("/api/register/anonimous", {"username": username}, key_state)
             headers = {
                 "User-Agent": _UA_ANDROID,
                 "X-Client-Enc-State": "ENCRYPTED",
@@ -344,8 +338,7 @@ _JS_SAFE = "!*'()*-._~"
 def _cookie_str(cookie: dict[str, str]) -> str:
     """按 encodeURIComponent 规则序列化（fork cookieObjToString）。"""
     return "; ".join(
-        f"{urllib.parse.quote(k, safe=_JS_SAFE)}="
-        f"{urllib.parse.quote(v, safe=_JS_SAFE)}"
+        f"{urllib.parse.quote(k, safe=_JS_SAFE)}={urllib.parse.quote(v, safe=_JS_SAFE)}"
         for k, v in cookie.items()
     )
 
@@ -393,9 +386,7 @@ async def qr_create() -> tuple[str, str, str]:
     Returns: (unikey, qr_content, session_cookie)
     unikey 与创建会话绑定，轮询必须回传同一 cookie（含匿名身份）。
     """
-    resp = await _weapi_post(
-        "https://music.163.com/weapi/login/qrcode/unikey", {"type": 3}
-    )
+    resp = await _weapi_post("https://music.163.com/weapi/login/qrcode/unikey", {"type": 3})
     flow: dict[str, str] = {}
     _merge_setcookie(flow, resp)
     try:

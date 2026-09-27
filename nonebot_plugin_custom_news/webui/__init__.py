@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from nonebot import logger, get_driver
+from nonebot import get_driver, logger
 from nonebot.drivers import ASGIMixin
 
 from .api import router as api_router

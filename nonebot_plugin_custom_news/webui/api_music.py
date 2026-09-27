@@ -4,12 +4,11 @@ import time
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
+from nonebot import logger
 from pydantic import BaseModel
 
-from nonebot import logger
-
 from ..sources import netease_auth, qqmusic_auth
-from ..store import MusicAccount, Store, get_store
+from ..store import MusicAccount, Store
 from .auth import require_auth
 
 router = APIRouter(prefix="/custom-news/api")
@@ -260,6 +259,10 @@ async def music_preview(store: Store = Depends(require_auth)) -> dict:
             )
         except Exception as e:
             out.append(
-                {"platform": platform, "label": PLATFORM_LABEL.get(platform, platform), "error": str(e)}
+                {
+                    "platform": platform,
+                    "label": PLATFORM_LABEL.get(platform, platform),
+                    "error": str(e),
+                }
             )
     return {"platforms": out}

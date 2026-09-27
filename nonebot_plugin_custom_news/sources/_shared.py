@@ -57,9 +57,7 @@ def save_ttl_cache(cache_file: Path, payload: Any, key: str = "items") -> None:
         raise ValueError("缓存键不能叫 ts")
     try:
         cache_file.write_text(
-            json.dumps(
-                {_CACHE_TS_KEY: time.time(), key: payload}, ensure_ascii=False
-            ),
+            json.dumps({_CACHE_TS_KEY: time.time(), key: payload}, ensure_ascii=False),
             "utf-8",
         )
     except Exception as e:

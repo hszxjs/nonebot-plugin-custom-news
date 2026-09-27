@@ -24,9 +24,7 @@ async def generate_digest_image(
     theme = theme_override or store.theme_by_id(theme_id)
     digest = await fetch_digest(store, force_refresh=force_refresh)
     if not digest.cards:
-        raise RenderError(
-            "未能获取到任何数据源内容，请检查 DailyHotApi 地址或稍后再试"
-        )
+        raise RenderError("未能获取到任何数据源内容，请检查 DailyHotApi 地址或稍后再试")
     image = await render_digest(store, theme, digest)
     logger.info(
         f"日报图生成成功: 主题={theme.name}, 卡片={len(digest.cards)}, 失败={digest.failed}"

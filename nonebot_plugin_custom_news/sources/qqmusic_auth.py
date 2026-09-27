@@ -6,7 +6,6 @@
 """
 
 import base64
-import io
 import re
 import time
 from typing import Any
@@ -132,9 +131,7 @@ async def _exchange(check_sig_url: str, qrsig: str) -> str:
     keep = {k: v for k, v in captured.items() if k in ("uin", "qm_keyst", "__q__a")}
     if "qm_keyst" not in keep:
         # 音乐域 cookie 未下发：可能被风控，或需要 musicu 交换
-        raise QQMusicAuthError(
-            "未能获取 qm_keyst（可能触发风控滑块），请改用手动导入 Cookie"
-        )
+        raise QQMusicAuthError("未能获取 qm_keyst（可能触发风控滑块），请改用手动导入 Cookie")
     return "; ".join(f"{k}={v}" for k, v in keep.items())
 
 
@@ -160,9 +157,7 @@ async def _fetch_nickname(cookie: str) -> str:
                 },
             )
             data = resp.json()
-            return str(
-                ((data.get("req") or {}).get("data") or {}).get("nick") or ""
-            )
+            return str(((data.get("req") or {}).get("data") or {}).get("nick") or "")
     except Exception:
         return ""
 

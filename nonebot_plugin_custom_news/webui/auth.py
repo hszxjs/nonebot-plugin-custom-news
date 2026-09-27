@@ -131,9 +131,7 @@ def _check_token(store: Store, token: str) -> bool:
         b64, sig = token.split(".", 1)
         auth = store.config.webui
         candidates = [auth.secret]
-        if auth.secret_prev and (
-            time.time() - auth.secret_rotated_at < _SECRET_GRACE_SECONDS
-        ):
+        if auth.secret_prev and (time.time() - auth.secret_rotated_at < _SECRET_GRACE_SECONDS):
             candidates.append(auth.secret_prev)
         if not any(hmac.compare_digest(sig, _sign(s, b64)) for s in candidates):
             return False
