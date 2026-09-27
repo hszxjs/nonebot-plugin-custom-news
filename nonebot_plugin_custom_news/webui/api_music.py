@@ -109,7 +109,7 @@ async def music_qr_create(req: QrCreateReq, store: Store = Depends(require_auth)
             raise HTTPException(
                 status_code=502,
                 detail=f"QQ 二维码获取失败（{e}）。若持续失败请改用手动导入 Cookie",
-            )
+            ) from e
         _QR_SESSIONS["qq"] = {"key": qrsig, "created": time.time()}
         return {"qr_img": qqmusic_auth.qr_image_base64(png)}
     raise HTTPException(status_code=400, detail="platform 必须是 netease 或 qq")
@@ -179,7 +179,7 @@ async def music_sms_send(req: SmsSendReq, store: Store = Depends(require_auth)) 
     try:
         await netease_auth.sms_send(phone)
     except Exception as e:
-        raise HTTPException(status_code=502, detail=str(e))
+        raise HTTPException(status_code=502, detail=str(e)) from e
     _SMS_COOLDOWN[phone] = time.time()
     return {"ok": True, "message": "验证码已发送"}
 
@@ -189,7 +189,7 @@ async def music_sms_verify(req: SmsVerifyReq, store: Store = Depends(require_aut
     try:
         r = await netease_auth.sms_login(req.phone.strip(), req.code.strip())
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     if not r.get("cookie"):
         raise HTTPException(status_code=502, detail="登录成功但未取到 cookie")
     _save_account(store, "netease", r["cookie"], r.get("nickname", ""))

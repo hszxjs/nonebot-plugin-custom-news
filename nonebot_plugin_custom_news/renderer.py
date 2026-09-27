@@ -183,7 +183,7 @@ def _overlay_rgb(mode: str, primary_hex: str) -> str:
         pr, pg, pb = hex_to_rgb(primary_hex)
     except Exception:
         pr = pg = pb = 128
-    mixed = tuple(round(b * 0.86 + p * 0.14) for b, p in zip(base, (pr, pg, pb)))
+    mixed = tuple(round(b * 0.86 + p * 0.14) for b, p in zip(base, (pr, pg, pb), strict=False))
     return f"{mixed[0]}, {mixed[1]}, {mixed[2]}"
 
 

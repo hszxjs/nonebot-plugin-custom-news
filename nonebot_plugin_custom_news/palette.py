@@ -31,12 +31,12 @@ def _rgb_to_hex(r: int, g: int, b: int) -> str:
 
 
 def rgb_to_hsl(r: int, g: int, b: int) -> tuple[float, float, float]:
-    h, l, s = colorsys.rgb_to_hls(r / 255, g / 255, b / 255)
-    return h, s, l
+    h, light, s = colorsys.rgb_to_hls(r / 255, g / 255, b / 255)
+    return h, s, light
 
 
-def hsl_to_rgb(h: float, s: float, l: float) -> tuple[int, int, int]:
-    r, g, b = colorsys.hls_to_rgb(_clamp(h), _clamp(l), _clamp(s))
+def hsl_to_rgb(h: float, s: float, light: float) -> tuple[int, int, int]:
+    r, g, b = colorsys.hls_to_rgb(_clamp(h), _clamp(light), _clamp(s))
     return round(r * 255), round(g * 255), round(b * 255)
 
 
@@ -58,15 +58,15 @@ def contrast_ratio(rgb1: tuple[int, int, int], rgb2: tuple[int, int, int]) -> fl
 def ensure_contrast(fg_hex: str, bg_rgb: tuple[int, int, int], min_ratio: float = 4.5) -> str:
     """在保持色相的前提下调整亮度，直到前景与背景对比度达标。"""
     r, g, b = hex_to_rgb(fg_hex)
-    h, s, l = rgb_to_hsl(r, g, b)
+    h, s, light = rgb_to_hsl(r, g, b)
     bg_lum = relative_luminance(*bg_rgb)
     # 背景偏亮则压暗前景，偏暗则提亮前景
     direction = -1 if bg_lum > 0.35 else 1
     for _ in range(60):
         if contrast_ratio((r, g, b), bg_rgb) >= min_ratio:
             break
-        l = _clamp(l + direction * 0.02)
-        r, g, b = hsl_to_rgb(h, s, l)
+        light = _clamp(light + direction * 0.02)
+        r, g, b = hsl_to_rgb(h, s, light)
     return _rgb_to_hex(r, g, b)
 
 
@@ -205,8 +205,8 @@ def extract_palette(
 def _ensure_vis(pair: tuple[tuple[int, int, int], tuple[int, int, int]]):
     fg, bg = pair
     if contrast_ratio(fg, bg) < 2.4:
-        h, s, l = rgb_to_hsl(*fg)
+        h, s, light = rgb_to_hsl(*fg)
         bg_lum = relative_luminance(*bg)
-        l = _clamp(l - 0.12 if bg_lum > 0.35 else l + 0.12)
-        return hsl_to_rgb(h, s, l)
+        light = _clamp(light - 0.12 if bg_lum > 0.35 else light + 0.12)
+        return hsl_to_rgb(h, s, light)
     return fg

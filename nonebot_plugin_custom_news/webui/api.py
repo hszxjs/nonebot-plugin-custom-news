@@ -143,7 +143,7 @@ async def update_password(req: PasswordReq, store: Store = Depends(require_auth)
     try:
         change_password(store, req.new_password)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     return {"ok": True}
 
 
@@ -364,7 +364,7 @@ async def palette_extract(req: PaletteReq, store: Store = Depends(require_auth))
     try:
         bg_path = await resolve_background_async(store, _theme_with_bg(req.background))
     except RenderError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
     colors = extract_palette(
         bg_path,
         overlay_mode=req.background.overlay_mode,
@@ -393,10 +393,10 @@ async def render_preview(req: RenderPreviewReq, store: Store = Depends(require_a
     except HTTPException:
         raise
     except RenderError as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
     except Exception as e:
         logger.error(f"预览渲染失败: {e!r}")
-        raise HTTPException(status_code=500, detail=f"渲染失败: {e!r}")
+        raise HTTPException(status_code=500, detail=f"渲染失败: {e!r}") from e
     return {
         "image": base64.b64encode(image).decode(),
         "cards": [
@@ -539,7 +539,7 @@ async def llm_analyze(req: AnalyzeReq, store: Store = Depends(require_auth)) -> 
         raise
     except Exception as e:
         logger.error(f"深读渲染失败: {e!r}")
-        raise HTTPException(status_code=500, detail=f"深读生成失败: {e}")
+        raise HTTPException(status_code=500, detail=f"深读生成失败: {e}") from e
     return {
         "image": base64.b64encode(image).decode(),
         "items": [

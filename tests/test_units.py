@@ -355,9 +355,7 @@ def test_preset_background_must_be_known_id(tmp_path, monkeypatch) -> None:
     import pytest
 
     from nonebot_plugin_custom_news.renderer import RenderError, resolve_background
-    from nonebot_plugin_custom_news.theme import BackgroundConfig
-
-    from nonebot_plugin_custom_news.theme import PRESET_BACKGROUNDS
+    from nonebot_plugin_custom_news.theme import PRESET_BACKGROUNDS, BackgroundConfig
 
     class _Theme:
         def __init__(self, value: str) -> None:
@@ -412,14 +410,13 @@ def test_password_change_rotates_secret_with_grace(store) -> None:
 
 def test_login_failure_backoff(store) -> None:
     import pytest
+    from fastapi import HTTPException
 
     from nonebot_plugin_custom_news.webui.auth import (
         note_login_failure,
         note_login_success,
         verify_login_allowed,
     )
-
-    from fastapi import HTTPException
 
     for _ in range(5):
         note_login_failure("admin")
