@@ -187,3 +187,47 @@ def test_rows_to_items_respects_limit() -> None:
 
     rows = [{"song": f"s{i}", "artists": "a", "jump_url": "u"} for i in range(20)]
     assert len(rows_to_items(rows, limit=3)) == 3
+
+
+# ---------------------------------------------------------------- 渲染尺寸收敛
+
+
+def test_resolve_render_size_caps_raster_width() -> None:
+    """3000px 宽是本次核查发现的病灶（实测峰值内存 4.35GB），必须被收敛。"""
+    from nonebot_plugin_custom_news.renderer import resolve_render_size
+
+    css, dpr = resolve_render_size(3000, 1.5)
+    assert css == 2000
+    assert dpr == 1.0
+    assert css * dpr <= 2000
+
+
+def test_resolve_render_size_keeps_default_untouched() -> None:
+    """默认 1280×1.5=1920 在上限内，不应被改动（避免无谓的行为变化）。"""
+    from nonebot_plugin_custom_news.renderer import resolve_render_size
+
+    assert resolve_render_size(1280, 1.5) == (1280, 1.5)
+
+
+def test_resolve_render_size_never_goes_below_dpr_floor() -> None:
+    """dpr 不得低于 1.0：低于 1 是把文字降采样，清晰度白送。"""
+    from nonebot_plugin_custom_news.renderer import resolve_render_size
+
+    for width in (1600, 2000, 2400, 4000):
+        _, dpr = resolve_render_size(width, 1.0)
+        assert dpr >= 1.0
+
+
+def test_resolve_render_size_clamps_absurd_width_and_floor() -> None:
+    from nonebot_plugin_custom_news.renderer import resolve_render_size
+
+    assert resolve_render_size(99_999, 1.5)[0] == 2000
+    assert resolve_render_size(10, 1.5)[0] == 320  # 下限，避免 0/负值
+
+
+def test_resolve_render_size_pixels_decrease_monotonically() -> None:
+    """宽度越大，光栅像素数不得反而更多（收敛必须单调）。"""
+    from nonebot_plugin_custom_news.renderer import resolve_render_size
+
+    pixels = [w * d for w, d in (resolve_render_size(x, 1.5) for x in (640, 1280, 1600, 2000, 3000))]
+    assert pixels == sorted(pixels), pixels

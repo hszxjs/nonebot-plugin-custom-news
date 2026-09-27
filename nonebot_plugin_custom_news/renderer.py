@@ -272,6 +272,28 @@ def build_variables(
 # ---------------------------------------------------------------- 兼容与防护
 
 
+#: 渲染光栅宽度上限。实测：3000px 宽 × dpr1.5（=4500px 光栅）+ 15 卡片 →
+#: 峰值内存 4.35GB、耗时 21.5s、产出 5.0MB PNG（换算到默认 1280px 仅约 0.9MB）。
+#: 聊天图在群里显示的宽度通常不到 1200px，多出来的分辨率只换内存与发送失败风险。
+_MAX_RASTER_WIDTH = 2000
+#: dpr 下限：低于 1.0 等于把文字降采样，清晰度得不偿失
+_MIN_DPR = 1.0
+#: 默认 dpr（1.5 倍采样在聊天清晰度与文件体积间的平衡点）
+_DEFAULT_DPR = 1.5
+
+
+def resolve_render_size(width: int, dpr: float) -> tuple[int, float]:
+    """把 (CSS 宽度, dpr) 收敛到内存安全区，返回实际渲染用的 (css_width, dpr)。
+
+    光栅像素数随宽度近似平方增长，内存与产物体积都吃这一项：
+    先压 CSS 宽度到上限，再把 dpr 压到不超上限的倍数（但不低于 _MIN_DPR）。
+    纯函数，行为由 tests/test_units.py 钉住。
+    """
+    css = max(320, min(int(width), _MAX_RASTER_WIDTH))
+    eff = max(_MIN_DPR, min(float(dpr), _MAX_RASTER_WIDTH / css))
+    return css, round(eff, 3)
+
+
 async def _render_via_htmlrender(
     template_name: str, template_vars: dict, width: int, dpr: float = 1.5
 ) -> bytes:
@@ -285,6 +307,14 @@ async def _render_via_htmlrender(
     "takes 1 positional argument but 2 were given"。浏览器启动等真实运行错误
     不回退（旧 API 用同一浏览器，回退无意义）。
     """
+    css_width, eff_dpr = resolve_render_size(width, dpr)
+    if (css_width, eff_dpr) != (int(width), float(dpr)):
+        logger.info(
+            f"渲染尺寸收敛: {width}px×dpr{dpr} → {css_width}px×dpr{eff_dpr}"
+            f"（光栅 {round(css_width * eff_dpr)}px ≤ {_MAX_RASTER_WIDTH}px，"
+            "避免内存与产物体积随宽度平方膨胀）"
+        )
+
     new_err: Exception | None = None
     try:
         from nonebot_plugin_htmlrender import render_template  # type: ignore
@@ -293,8 +323,8 @@ async def _render_via_htmlrender(
             str(TEMPLATE_DIR),
             template_name,
             variables=template_vars,
-            width=width,
-            device_pixel_ratio=dpr,
+            width=css_width,
+            device_pixel_ratio=eff_dpr,
         )
         return bytes(artifact)
     except (ImportError, TypeError) as e:
@@ -309,8 +339,8 @@ async def _render_via_htmlrender(
             template_path=str(TEMPLATE_DIR),
             template_name=template_name,
             templates=template_vars,
-            pages={"viewport": {"width": width, "height": 800}},
-            device_scale_factor=dpr,
+            pages={"viewport": {"width": css_width, "height": 800}},
+            device_scale_factor=eff_dpr,
         )
     except ImportError as e:
         raise RenderError("未安装 nonebot-plugin-htmlrender") from e
@@ -347,10 +377,16 @@ def shrink_if_huge(image: bytes, max_bytes: int = _MAX_IMAGE_BYTES) -> bytes:
         return image
 
 
-async def render_html(template_vars: dict, width: int) -> bytes:
-    """调用 htmlrender 渲染模板为 PNG（新旧 API 兼容）。"""
+async def render_html(
+    template_vars: dict, width: int, dpr: float = _DEFAULT_DPR
+) -> bytes:
+    """调用 htmlrender 渲染模板为 PNG（新旧 API 兼容）。
+
+    width/dpr 由调用方经 resolve_render_size() 收敛后传入，保证模板 CSS 宽度
+    与光栅尺寸同源——只压 viewport 而页面本身还是宽的话，截图仍是宽图。
+    """
     return await _render_via_htmlrender(
-        "daily_digest.html", template_vars, width, dpr=1.5
+        "daily_digest.html", template_vars, width, dpr=dpr
     )
 
 
@@ -358,10 +394,9 @@ async def render_digest(store: Store, theme: Theme, digest: Digest) -> bytes:
     """完整渲染一张日报图。"""
     bg_path = await resolve_background_async(store, theme)
     colors = resolve_colors(store, theme, bg_path)
-    variables = build_variables(
-        store, theme, digest, bg_path, colors, store.config.general.render_width
-    )
-    data = await render_html(variables, store.config.general.render_width)
+    css_width, dpr = resolve_render_size(store.config.general.render_width, _DEFAULT_DPR)
+    variables = build_variables(store, theme, digest, bg_path, colors, css_width)
+    data = await render_html(variables, css_width, dpr=dpr)
     data = shrink_if_huge(data)
     _save_latest(store, data)
     logger.info(
@@ -520,8 +555,12 @@ async def render_analysis(store: Store, theme: Theme, analyses: list) -> bytes:
     variables = build_analysis_variables(
         store, theme, analyses, extra=bg_vars, colors_override=resolved
     )
+    css_width, dpr = resolve_render_size(
+        variables.get("width", ANALYSIS_WIDTH), _DEFAULT_DPR
+    )
+    variables["width"] = css_width
     data = await _render_via_htmlrender(
-        "analysis_chat.html", variables, ac.width, dpr=1.5
+        "analysis_chat.html", variables, css_width, dpr=dpr
     )
     data = shrink_if_huge(data)
     latest = store.cache_dir / "latest_analysis.png"
