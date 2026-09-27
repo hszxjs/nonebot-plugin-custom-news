@@ -15,6 +15,7 @@ from nonebot import logger
 
 from .fetcher import Digest
 from .palette import extract_palette
+from .sources._shared import truncate
 from .sources.dailyhot import format_hot
 from .sources.wallpaper import get_daily_wallpaper
 from .store import Store
@@ -260,6 +261,7 @@ def build_variables(
         },
         "cards": cards,
         "failed_names": "、".join(digest.failed) if digest.failed else "",
+        "empty_names": "、".join(digest.empty_sources) if digest.empty_sources else "",
     }
 
 
@@ -486,8 +488,8 @@ def _is_light_hex(hex_color: str) -> bool:
     return (r * 299 + g * 587 + b * 114) / 1000 > 140
 
 
-def _truncate(text: str, n: int) -> str:
-    return text if len(text) <= n else text[: n - 1] + "…"
+#: 截断与 sources 包共用一份实现（原先三处逐字节重复）
+_truncate = truncate
 
 
 async def render_analysis(store: Store, theme: Theme, analyses: list) -> bytes:

@@ -17,6 +17,8 @@ from typing import Any
 
 import httpx
 
+from ._shared import load_ttl_cache, save_ttl_cache
+
 _IQ_API = "https://api.codexradar.com/api/v1/iq-history?v=20260815-equal-iq-v2"
 _SITE = "https://deng.codexradar.com"
 _TTL = 30 * 60  # 响应 1MB+，30 分钟磁盘缓存
@@ -115,15 +117,7 @@ def _harness_of(model_id: str) -> str:
 
 
 def _load_cache(cache_file: Path) -> Any | None:
-    if not cache_file.exists():
-        return None
-    try:
-        data = json.loads(cache_file.read_text("utf-8"))
-        if time.time() - data.get("ts", 0) < _TTL:
-            return data.get("items")
-    except Exception:
-        pass
-    return None
+    return load_ttl_cache(cache_file, _TTL, key="items")
 
 
 def dedupe_family(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -146,7 +140,7 @@ def dedupe_family(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 async def fetch_ai_iq(cache_dir: Path, limit: int = 10) -> list[Any]:
     """实时智商 Top N（同族去重 + 专属环境标注）。返回 HotItem 列表。"""
-    from ..fetcher import HotItem
+    from .dailyhot import HotItem
 
     cache_file = cache_dir / "ai_iq.json"
     cached = _load_cache(cache_file)
@@ -166,13 +160,7 @@ async def fetch_ai_iq(cache_dir: Path, limit: int = 10) -> list[Any]:
             if isinstance(score, (int, float)) and score > 0:
                 rows.append({"model": model, "iq": float(score)})
         rows.sort(key=lambda r: -r["iq"])
-        try:
-            cache_file.write_text(
-                json.dumps({"ts": time.time(), "items": rows}, ensure_ascii=False),
-                "utf-8",
-            )
-        except Exception:
-            pass
+        save_ttl_cache(cache_file, rows, key="items")
 
     rows = dedupe_family(rows)
     items = []

@@ -5,10 +5,7 @@ from httpx import AsyncClient
 
 from nonebot import logger
 
-_UA = (
-    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
-    "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
-)
+from ._shared import UA_IPHONE as _UA
 
 MAX_HTML_BYTES = 2 * 1024 * 1024
 MAX_TEXT_CHARS = 6000

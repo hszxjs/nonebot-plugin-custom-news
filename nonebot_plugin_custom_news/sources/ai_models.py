@@ -15,6 +15,8 @@ from typing import Any
 
 import httpx
 
+from ._shared import load_ttl_cache, save_ttl_cache
+
 _API = "https://models.dev/api.json"
 _TTL = 30 * 60  # 响应数 MB，30 分钟磁盘缓存
 _ANNOUNCE_WINDOW_DAYS = 60
@@ -37,15 +39,7 @@ _MAINSTREAM = (
 
 
 def _load_cache(cache_file: Path) -> Any | None:
-    if not cache_file.exists():
-        return None
-    try:
-        data = json.loads(cache_file.read_text("utf-8"))
-        if time.time() - data.get("ts", 0) < _TTL:
-            return data.get("catalog")
-    except Exception:
-        pass
-    return None
+    return load_ttl_cache(cache_file, _TTL, key="catalog")
 
 
 def _build_catalog(raw: dict[str, Any]) -> dict[str, dict[str, str]]:
@@ -66,7 +60,7 @@ def _build_catalog(raw: dict[str, Any]) -> dict[str, dict[str, str]]:
 
 async def fetch_ai_models(store: Any, limit: int = 10) -> list[Any]:
     """新模型检测。无新模型时返回空列表（卡片整体隐藏）。"""
-    from ..fetcher import HotItem
+    from .dailyhot import HotItem
 
     cache_file = store.cache_dir / "ai_models.json"
     catalog = _load_cache(cache_file)
@@ -75,13 +69,7 @@ async def fetch_ai_models(store: Any, limit: int = 10) -> list[Any]:
             resp = await client.get(_API)
             resp.raise_for_status()
             catalog = _build_catalog(resp.json())
-        try:
-            cache_file.write_text(
-                json.dumps({"ts": time.time(), "catalog": catalog}, ensure_ascii=False),
-                "utf-8",
-            )
-        except Exception:
-            pass
+        save_ttl_cache(cache_file, catalog, key="catalog")
 
     baseline_file: Path = store.data_dir / "ai_models_baseline.json"
     try:

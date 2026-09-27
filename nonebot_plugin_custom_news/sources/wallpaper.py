@@ -37,8 +37,8 @@ async def get_daily_wallpaper(cache_dir: Path, custom_url: str = "") -> tuple[Pa
     if img_path.exists() and img_path.stat().st_size > 10_000 and meta_path.exists():
         try:
             return img_path, json.loads(meta_path.read_text("utf-8")).get("copyright", "")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug(f"壁纸版权信息读取失败（按空文案处理）: {e!r}")
 
     async with httpx.AsyncClient(
         timeout=20.0, headers={"User-Agent": _UA}, follow_redirects=True

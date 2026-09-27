@@ -30,6 +30,8 @@ class CardData:
 @dataclass
 class Digest:
     cards: list[CardData] = field(default_factory=list)
+    #: 抓取成功但返回空数据的源（≠失败）：日报图上要能区分「源坏了」和「今天没新闻」
+    empty_sources: list[str] = field(default_factory=list)
     generated_at: datetime = field(default_factory=datetime.now)
     failed: list[str] = field(default_factory=list)
 
@@ -88,11 +90,11 @@ async def _fetch_one(
         if sd.fetcher == "netease_music":
             from .sources.music import fetch_netease_new
 
-            items = await fetch_netease_new(limit)
+            items = await fetch_netease_new(store.cache_dir, limit)
         elif sd.fetcher == "qq_music":
             from .sources.music import fetch_qq_new
 
-            items = await fetch_qq_new(limit)
+            items = await fetch_qq_new(store.cache_dir, limit)
         elif sd.fetcher == "ai_iq":
             from .sources.ai_radar import fetch_ai_iq
 
@@ -169,6 +171,7 @@ async def fetch_digest(store: Store, force_refresh: bool = False) -> Digest:
 
     cards: list[CardData] = []
     failed: list[str] = []
+    empty: list[str] = []
     for (sd, _limit), result in zip(enabled, results):
         if isinstance(result, BaseException):
             logger.error(f"数据源 {sd.name} 抓取异常: {result!r}")
@@ -176,11 +179,18 @@ async def fetch_digest(store: Store, force_refresh: bool = False) -> Digest:
         elif result is None:
             failed.append(sd.name)
         elif not result.items:
-            pass  # 空数据（如「大模型上新」无新模型时）静默隐藏，不算失败
+            # 空数据（如「大模型上新」无新模型时）不显示卡片，但记名以便在图上与失败区分
+            empty.append(sd.name)
+            logger.info(f"数据源 {sd.name} 本次无数据（非失败）")
         else:
             cards.append(result)
 
     # 分类固定顺序 + 源声明顺序
     cat_rank = {c: i for i, c in enumerate(_CATEGORY_ORDER)}
     cards.sort(key=lambda c: (cat_rank.get(c.category, 99), c.source_id))
-    return Digest(cards=cards, generated_at=datetime.now(), failed=failed)
+    return Digest(
+        cards=cards,
+        generated_at=datetime.now(),
+        failed=failed,
+        empty_sources=empty,
+    )

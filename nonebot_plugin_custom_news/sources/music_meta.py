@@ -11,12 +11,11 @@ import httpx
 
 from nonebot import logger
 
+from ._shared import load_ttl_cache, save_ttl_cache, truncate
+
 from . import netease_auth, qqmusic_auth
 
-_UA = (
-    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
-    "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
-)
+from ._shared import UA_IPHONE as _UA
 CACHE_TTL = 30 * 60  # 榜单/评论/播放链接 30 分钟
 
 NETEASE_NEW_LIST = 3779629
@@ -57,26 +56,12 @@ def _cache_dir(store_dir: Path) -> Path:
 
 
 def _load_cache(path: Path, ttl: int) -> Any | None:
-    try:
-        data = json.loads(path.read_text("utf-8"))
-        if (datetime.now() - datetime.fromisoformat(data["ts"])).total_seconds() < ttl:
-            return data["payload"]
-    except Exception:
-        pass
-    return None
+    """榜单缓存（统一格式见 sources/_shared.py）。"""
+    return load_ttl_cache(path, ttl, key="payload")
 
 
 def _save_cache(path: Path, payload: Any) -> None:
-    try:
-        path.write_text(
-            json.dumps(
-                {"ts": datetime.now().isoformat(timespec="seconds"), "payload": payload},
-                ensure_ascii=False,
-            ),
-            "utf-8",
-        )
-    except OSError:
-        pass
+    save_ttl_cache(path, payload, key="payload")
 
 
 def _clean_comment(text: str) -> str:
@@ -85,8 +70,8 @@ def _clean_comment(text: str) -> str:
     return " ".join(text.split())
 
 
-def _short(text: str, n: int) -> str:
-    return text if len(text) <= n else text[: n - 1] + "…"
+#: 截断与 sources 包共用一份实现
+_short = truncate
 
 
 # ---------------------------------------------------------------- 网易云

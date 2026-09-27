@@ -1,110 +1,53 @@
-"""音乐新歌榜：网易云音乐 + QQ音乐（公开接口，无需登录）。
+"""新歌榜轻量抓取（日报卡片用）：只做字段投影，实现复用 music_meta。
 
-- 网易云「云音乐新歌榜」：官方歌单 3779629，老版 playlist 接口
-- QQ音乐「新歌榜」：fcg toplist 接口 topid=27
+历史上这里有一套独立实现：自己声明歌单 id / topid 并重写一遍解析，
+与 music_meta（聊天记录走的富数据版）并存 —— 榜单 id 或接口字段一改就要改两处，
+漏一处就是「一个入口正常、另一个空榜」。
+
+现在端点、解析与缓存都只有 music_meta 一份，本模块只负责投影成 HotItem。
+（两个接口都是官方公开接口，无需登录。）
 """
 
-import httpx
+from __future__ import annotations
 
-from nonebot import logger
+from pathlib import Path
 
 from .dailyhot import HotItem
-
-_UA = (
-    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
-    "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
-)
-
-NETEASE_NEW_SONG_LIST = 3779629  # 云音乐新歌榜
-QQ_NEW_SONG_TOPLIST = 27  # QQ音乐新歌榜
+from .music_meta import netease_chart, qq_chart
 
 
 class MusicSourceError(Exception):
-    pass
+    """新歌榜数据不可用。"""
 
 
-def _clean(text: str) -> str:
-    return " ".join(text.split())
-
-
-async def fetch_netease_new(limit: int = 10) -> list[HotItem]:
-    """网易云新歌榜：标题 = 歌名 - 歌手。"""
-    url = "https://music.163.com/api/playlist/detail"
-    try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.get(
-                url,
-                params={"id": NETEASE_NEW_SONG_LIST},
-                headers={"User-Agent": _UA, "Referer": "https://music.163.com/"},
-            )
-            resp.raise_for_status()
-            payload = resp.json()
-    except Exception as e:
-        raise MusicSourceError(f"网易云接口请求失败: {e!r}") from e
-
-    tracks = (payload.get("result") or {}).get("tracks") or []
-    if not tracks:
-        raise MusicSourceError("网易云接口未返回曲目")
-
+def rows_to_items(rows: list[dict], limit: int) -> list[HotItem]:
+    """把榜单行投影成日报卡片用的 HotItem（标题 = 歌名 - 歌手）。"""
     items: list[HotItem] = []
-    for t in tracks:
-        name = _clean(str(t.get("name") or ""))
-        artists = "/".join(
-            _clean(str(a.get("name") or "")) for a in (t.get("artists") or []) if a.get("name")
-        )
+    for row in rows:
+        name = " ".join(str(row.get("song") or "").split())
         if not name:
             continue
+        artists = " ".join(str(row.get("artists") or "").split())
         title = f"{name} - {artists}" if artists else name
-        sid = t.get("id")
-        link = f"https://music.163.com/song?id={sid}" if sid else None
-        items.append(HotItem(title=title, hot=None, url=link))
+        items.append(HotItem(title=title, hot=None, url=row.get("jump_url") or None))
         if len(items) >= limit:
             break
+    return items
+
+
+async def fetch_netease_new(cache_dir: Path, limit: int = 10) -> list[HotItem]:
+    """网易云新歌榜。"""
+    rows = await netease_chart(cache_dir, limit=max(limit, 10))
+    items = rows_to_items(rows, limit)
     if not items:
         raise MusicSourceError("网易云新歌榜解析为空")
     return items
 
 
-async def fetch_qq_new(limit: int = 10) -> list[HotItem]:
-    """QQ音乐新歌榜：标题 = 歌名 - 歌手。"""
-    url = "https://c.y.qq.com/v8/fcg-bin/fcg_v8_toplist_cp.fcg"
-    try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.get(
-                url,
-                params={
-                    "topid": QQ_NEW_SONG_TOPLIST,
-                    "type": "top",
-                    "song_begin": 0,
-                    "song_num": max(limit, 30),
-                    "format": "json",
-                },
-                headers={"User-Agent": _UA, "Referer": "https://y.qq.com/"},
-            )
-            resp.raise_for_status()
-            payload = resp.json()
-    except Exception as e:
-        raise MusicSourceError(f"QQ音乐接口请求失败: {e!r}") from e
-
-    songlist = payload.get("songlist") or []
-    if not songlist:
-        raise MusicSourceError("QQ音乐接口未返回曲目")
-
-    items: list[HotItem] = []
-    for entry in songlist:
-        d = entry.get("data") or {}
-        name = _clean(str(d.get("songname") or ""))
-        singers = "/".join(
-            _clean(str(s.get("name") or "")) for s in (d.get("singer") or []) if s.get("name")
-        )
-        if not name:
-            continue
-        title = f"{name} - {singers}" if singers else name
-        mid = d.get("songmid")
-        link = f"https://y.qq.com/n/ryqq/songDetail/{mid}" if mid else None
-        items.append(HotItem(title=title, hot=None, url=link))
-        if len(items) >= limit:
-            break
+async def fetch_qq_new(cache_dir: Path, limit: int = 10) -> list[HotItem]:
+    """QQ音乐新歌榜。"""
+    rows = await qq_chart(cache_dir, limit=max(limit, 10))
+    items = rows_to_items(rows, limit)
     if not items:
         raise MusicSourceError("QQ音乐新歌榜解析为空")
     return items

@@ -370,6 +370,9 @@
       {% if failed_names %}
       <div class="failed">未获取：{{ failed_names }}</div>
       {% endif %}
+      {% if empty_names %}
+      <div class="failed">本次无数据：{{ empty_names }}</div>
+      {% endif %}
       <div class="credit">{{ footer.time_text }}{% if footer.show_credit %} · nonebot-plugin-custom-news{% endif %}</div>
     </div>
 
