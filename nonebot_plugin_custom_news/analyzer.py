@@ -1,6 +1,7 @@
 """新闻深读：挑选新闻 → 抓原文 → LLM 解析 → 结构化结果。"""
 
 import json
+import random
 import re
 from dataclasses import dataclass, field
 from typing import Any
@@ -16,6 +17,7 @@ from .store import Store
 #: 参与深读挑选的卡片分类，按正文可得性排序（新闻页有正文，社交页多为视频/问答无正文）
 _ANALYSIS_CATEGORY_PRIORITY = {"news": 0, "global": 1, "social": 2}
 
+#: 内置深读 system prompt（通用风格）；人设/口吻请用配置项 llm_style_prompt 追加
 _SYSTEM_PROMPT = (
     "你是一位资深新闻编辑，擅长把新闻原文提炼为客观、结构化的深度解读。"
     "只依据提供的原文内容分析，不编造事实，原文未提及的信息标注「原文未提及」。"
@@ -25,6 +27,33 @@ _SYSTEM_PROMPT = (
     '"impact": "可能的影响(60-120字)", "remark": "一句话锐评(<=30字)"}。'
     "全部使用简体中文。"
 )
+
+#: 每条新闻轮换一种腔调，避免同一批深读读起来一个样（配置项 llm_style_prompt 可覆盖人设）
+_STYLE_DICE = (
+    "说书人腔：像在鱼塘边给群友讲古，把前因后果慢慢抖出来",
+    "冷幽默腔：一本正经地点出最荒诞的地方，自己先不笑",
+    "嘴替腔：替群友把心里那口吐槽先说了，再补正经分析",
+    "拆解腔：当成拆机现场，一层层把门道扒开给群友看",
+    "预言腔：重心放在「接下来会怎样」，敢下判断并讲清条件",
+    "外行腔：用刚上岸的视角，把门槛高的事讲成大白话",
+    "复盘腔：把这事当成一局打完的牌，讲清谁在哪个节点走错了",
+    "短评腔：惜字如金，每句都往要害上砸",
+)
+
+#: 生成温度（太低会让每条深读都念同一套，推理模型尤其明显）
+_TEMPERATURE = 0.85
+
+
+def _system_prompt(general: Any) -> str:
+    """内置 prompt + 用户自定义风格（配置项 llm_style_prompt）。
+
+    自定义部分整段追加在内置规则之后：规则（只依据原文、JSON 字段）不可被覆盖，
+    但口吻、人称、禁用词、切入角度都可以按频道口味改。
+    """
+    style = str(getattr(general, "llm_style_prompt", "") or "").strip()
+    if not style:
+        return _SYSTEM_PROMPT
+    return f"{_SYSTEM_PROMPT}\n\n【本频道风格要求】\n{style}"
 
 
 @dataclass
@@ -120,12 +149,17 @@ def _chat_completions_url(base_url: str) -> str:
     return base + "/chat/completions"
 
 
-async def _chat(general: Any, user_prompt: str) -> str:
+async def _chat(
+    general: Any, user_prompt: str, style: str | None = None
+) -> str:
     url = _chat_completions_url(general.llm_base_url)
     headers = {"Authorization": f"Bearer {general.llm_api_key.strip()}"}
+    system_content = _system_prompt(general)
+    if style:
+        system_content += f"\n\n【本条腔调】{style}（只影响措辞和切入角度，事实与规矩不变）"
     payload = {
         "model": general.llm_model,
-        "temperature": 0.3,
+        "temperature": _TEMPERATURE,
         # 上限而非计费：推理模型（GLM/DeepSeek-R1 等）思考过程也计入，
         # 预算不足会截断正文导致 JSON 不完整（默认 8000）
         "max_tokens": int(getattr(general, "llm_max_tokens", 8000) or 8000),
@@ -133,7 +167,7 @@ async def _chat(general: Any, user_prompt: str) -> str:
         # 部分端点/模型不支持该参数（400），下方自动去参重试
         "response_format": {"type": "json_object"},
         "messages": [
-            {"role": "system", "content": _SYSTEM_PROMPT},
+            {"role": "system", "content": system_content},
             {"role": "user", "content": user_prompt},
         ],
     }
@@ -202,9 +236,12 @@ async def run_analysis(store: Store, count: int | None = None) -> list[Analysis]
     mock_mode = general.llm_api_key.strip().lower().startswith("mock")
     results: list[Analysis] = []
     last_error = "无可用正文或全部调用失败"
+    dice = list(_STYLE_DICE)
+    random.shuffle(dice)
     for idx, cand in enumerate(candidates):
         if len(results) >= n:
             break
+        style = dice[idx % len(dice)]
         # 条目间隔，缓解免费档模型限流
         if idx and not mock_mode:
             import asyncio
@@ -233,7 +270,9 @@ async def run_analysis(store: Store, count: int | None = None) -> list[Analysis]
                     continue
                 ana.article_chars = len(article)
                 content = await _chat(
-                    general, f"新闻标题：{cand[2]}\n\n新闻原文：\n{article}"
+                    general,
+                    f"新闻标题：{cand[2]}\n\n新闻原文：\n{article}",
+                    style=style,
                 )
                 data = _parse_llm_json(content)
             ana.event = data.get("event", "")

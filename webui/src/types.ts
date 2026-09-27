@@ -87,6 +87,9 @@ export interface GeneralSettings {
   llm_max_tokens: number;
   llm_follow_digest: boolean;
   analysis_count: number;
+  llm_style_prompt: string;
+  analysis_bot_name: string;
+  analysis_avatar: string;
 }
 
 export interface SourceSetting {

@@ -472,6 +472,8 @@ def build_analysis_variables(
         "date_text": now.strftime("%Y年%m月%d日") + " · " + _WEEKDAYS[now.weekday()],
         "news_list": news_list,
         "model_text": f"由 {model} 解析",
+        "bot_name": store.config.general.analysis_bot_name or "热点解读员",
+        "bot_avatar": store.config.general.analysis_avatar,
         **(extra or {}),
     }
 

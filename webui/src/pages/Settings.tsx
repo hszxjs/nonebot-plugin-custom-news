@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { FloppyDisk, Lightning } from "@phosphor-icons/react";
-import { Button, Card, CardBody, Divider, Input, PageHeader, Switch } from "../ui";
+import { Button, Card, CardBody, Divider, Input, PageHeader, Switch, Textarea } from "../ui";
 import { api } from "../api";
 import type { GeneralSettings } from "../types";
 
@@ -129,7 +129,26 @@ export default function SettingsPage() {
               value={String(general.analysis_count)}
               onValueChange={(v) => setGeneral({ ...general, analysis_count: Number(v) || 3 })}
             />
+            <Input
+              label="深读署名"
+              value={general.analysis_bot_name ?? ""}
+              onValueChange={(v) => setGeneral({ ...general, analysis_bot_name: v })}
+              description="深读图里发送者的名字"
+            />
+            <Input
+              label="深读头像"
+              value={general.analysis_avatar ?? ""}
+              onValueChange={(v) => setGeneral({ ...general, analysis_avatar: v })}
+              description="data URI / http(s) 链接 / 本地图片路径；留空用内置 emoji"
+            />
           </div>
+          <Textarea
+            label="深读风格（人设）"
+            value={general.llm_style_prompt ?? ""}
+            onValueChange={(v) => setGeneral({ ...general, llm_style_prompt: v })}
+            placeholder="例如：你是深海机房里的硅基胖鱼，爱用鱼的比喻，短句口语，别用官腔……"
+            description="附加在内置 prompt 之后，只改口吻不改规则；留空用内置通用风格"
+          />
           <div className="flex flex-wrap items-center gap-2">
             <Button
               size="sm"

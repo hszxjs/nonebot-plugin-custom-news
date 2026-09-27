@@ -135,7 +135,12 @@
       color-mix(in srgb, var(--accent) 30%, transparent));
     border: 1px solid var(--card-border);
   }
-  .avatar.bot { font-size: 24px; }
+  .avatar.bot {
+    font-size: 24px;
+    {% if bot_avatar %}background-image: url("{{ bot_avatar }}");
+    background-size: cover;
+    background-position: center;{% endif %}
+  }
 
   .bubble-col { display: flex; flex-direction: column; gap: 6px; max-width: 84%; }
   .row.self .bubble-col { align-items: flex-end; }
@@ -220,9 +225,9 @@
 
     {% if news.ok %}
     <div class="row">
-      <div class="avatar bot">🤖</div>
+      <div class="avatar bot">{% if not bot_avatar %}🤖{% endif %}</div>
       <div class="bubble-col">
-        <span class="sender">热点解读员</span>
+        <span class="sender">{{ bot_name }}</span>
         <div class="bubble greeting">
           <span class="label">📌 事件</span>{{ news.event }}
           <div class="meta">原文 {{ news.article_chars }} 字 · 已完整阅读后解析</div>
@@ -238,9 +243,9 @@
     </div>
 
     <div class="row">
-      <div class="avatar bot">🤖</div>
+      <div class="avatar bot">{% if not bot_avatar %}🤖{% endif %}</div>
       <div class="bubble-col">
-        <span class="sender">热点解读员</span>
+        <span class="sender">{{ bot_name }}</span>
         <div class="bubble">
           <span class="label">🧭 背景</span>{{ news.background }}
         </div>
@@ -258,9 +263,9 @@
     </div>
     {% else %}
     <div class="row">
-      <div class="avatar bot">🤖</div>
+      <div class="avatar bot">{% if not bot_avatar %}🤖{% endif %}</div>
       <div class="bubble-col">
-        <span class="sender">热点解读员</span>
+        <span class="sender">{{ bot_name }}</span>
         <div class="bubble">这条的原文暂时没能读到（{{ news.error }}），跳过深读啦 🙈</div>
       </div>
     </div>

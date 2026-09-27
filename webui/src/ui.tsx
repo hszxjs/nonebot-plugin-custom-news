@@ -216,6 +216,42 @@ export function Input({
   );
 }
 
+/* ---------------------------------- Textarea ------------------------------- */
+
+export function Textarea({
+  label,
+  description,
+  value,
+  onValueChange,
+  placeholder,
+  rows = 6,
+  className,
+}: {
+  label?: string;
+  description?: string;
+  value?: string;
+  onValueChange?: (v: string) => void;
+  placeholder?: string;
+  rows?: number;
+  className?: string;
+}) {
+  return (
+    <label className={cn("flex flex-col gap-1.5", className)}>
+      {label && <span className="text-tiny font-medium text-muted">{label}</span>}
+      <textarea
+        value={value}
+        onChange={(e) => onValueChange?.(e.target.value)}
+        placeholder={placeholder}
+        rows={rows}
+        className={cn("field-input resize-y font-mono text-tiny leading-relaxed")}
+      />
+      {description ? (
+        <span className="text-tiny text-muted/80">{description}</span>
+      ) : null}
+    </label>
+  );
+}
+
 /* ---------------------------------- Switch --------------------------------- */
 /* 品牌滑块开关：自绘动画（48×28），开启态品牌渐变 + 光晕 */
 
