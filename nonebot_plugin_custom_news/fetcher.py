@@ -168,7 +168,7 @@ async def fetch_digest(store: Store, force_refresh: bool = False) -> Digest:
     cards: list[CardData] = []
     failed: list[str] = []
     empty: list[str] = []
-    for (sd, _limit), result in zip(enabled, results):
+    for (sd, _limit), result in zip(enabled, results, strict=False):
         if isinstance(result, BaseException):
             logger.error(f"数据源 {sd.name} 抓取异常: {result!r}")
             failed.append(sd.name)

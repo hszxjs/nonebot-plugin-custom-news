@@ -63,7 +63,15 @@ target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "B", "I", "UP"]
-ignore = ["E501"]  # 行宽交给 formatter，不重复报
+ignore = [
+    "E501",  # 行宽交给 formatter，不重复报
+    # B008：FastAPI 的惯例写法就是 Depends()/Header() 作为默认参数（32 处全是这个），
+    # 该规则针对的是可变默认值陷阱，不适用于依赖注入
+    "B008",
+    # E402：NoneBot 插件的惯例是先 require() 再 import（见 __init__.py 的 htmlrender
+    # 预配置），此处导入位置是被迫的，不是疏忽
+    "E402",
+]
 
 [tool.bandit]
 exclude_dirs = ["tests", "webui"]

@@ -419,10 +419,13 @@ def test_login_failure_backoff(store) -> None:
         verify_login_allowed,
     )
 
+    from fastapi import HTTPException
+
     for _ in range(5):
         note_login_failure("admin")
-    with pytest.raises(Exception):
+    with pytest.raises(HTTPException) as exc:
         verify_login_allowed("admin")
+    assert exc.value.status_code == 429
     note_login_success("admin")
     verify_login_allowed("admin")  # 成功后计数清零
 
