@@ -52,6 +52,23 @@ _ELISION_MARK = "\n……（原文中段省略）……\n"
 _last_usage: dict[str, int] = {}
 
 
+#: 恒定前言：用来延长「请求之间完全一致」的前缀，提高 prompt 缓存命中率。
+#: 实测 DeepSeek 按 128 token 块缓存前缀：system 约 505 tokens，只有 3 个整块落在
+#: 恒定区（命中 384），第 4 块被紧跟的可变内容切断、整块浪费。
+#: 把这~240 tokens 的固定说明放到 user 消息最前面，可让恒定区覆盖更多整块。
+#: 注意：本段必须**一字不变**，任何随请求变化的内容（腔调、标题、正文）都要放在它之后。
+_CACHE_PREAMBLE = (
+    "【输出契约】只输出 JSON，字段固定：event（一句话事件，≤30字）、"
+    "background（背景，80-140字）、points（3-5条要点）、"
+    "impact（影响，60-120字）、remark（一句话锐评，≤30字）。"
+    "只依据原文，原文未提及写「原文未提及」，不补充外部知识，不输出 markdown 代码块。"
+    "全部使用简体中文。\n\n"
+    "【阅读要求】先判断这条新闻的实质变化（谁做了什么、与以前有何不同），再下判断；"
+    "背景讲清「为什么会发生」，要点讲清「关键事实」，影响讲清「谁会受影响」，"
+    "锐评给一句最锋利的结论。\n\n"
+)
+
+
 def _trim_for_analysis(text: str, budget: int | None = None) -> str:
     """把原文裁到分析预算内：短文原样，超长文保留开头与结尾（结论通常在尾段）。
 
@@ -200,9 +217,13 @@ async def _chat(general: Any, user_prompt: str, style: str | None = None) -> str
     # （实测命中率仅 29%）。把变量挪到 user 消息后，system 整段恒定，
     # 可命中的前缀直接覆盖整段 system（含人设与规则）。
     system_content = _system_prompt(general)
-    user_content = user_prompt
+    # 恒定前言在最前、可变内容全部在后：这是缓存命中率的关键结构
+    user_content = f"{_CACHE_PREAMBLE}{user_prompt}"
     if style:
-        user_content = f"【本条腔调】{style}（只影响措辞和切入角度，事实与规矩不变）\n\n{user_prompt}"
+        user_content = (
+            f"{_CACHE_PREAMBLE}【本条腔调】{style}"
+            f"（只影响措辞和切入角度，事实与规矩不变）\n\n{user_prompt}"
+        )
     payload = {
         "model": general.llm_model,
         "temperature": _TEMPERATURE,
