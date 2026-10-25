@@ -37,6 +37,9 @@ class GeneralSettings(BaseModel):
     llm_follow_digest: bool = True
     #: 每次解析的新闻条数
     analysis_count: int = 3
+    #: 送进 LLM 的正文上限（字符）。命中率上限 ≈ system 提示 ÷ (system + 正文)，
+    #: 正文越长命中率越低、费用与延迟越高；3000 字符足够覆盖新闻主体
+    analysis_article_chars: int = Field(default=2000, ge=500, le=20000)
     #: 深读风格指令（人设/口吻，追加到内置 system prompt 之后；留空用内置通用风格）
     llm_style_prompt: str = ""
     #: 深读图里的署名

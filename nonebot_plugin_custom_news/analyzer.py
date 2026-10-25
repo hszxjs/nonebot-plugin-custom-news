@@ -2,6 +2,7 @@
 
 import json
 import random
+import time
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -40,6 +41,30 @@ _STYLE_DICE = (
 
 #: 生成温度（太低会让每条深读都念同一套，推理模型尤其明显）
 _TEMPERATURE = 0.85
+
+#: 深读原文预算：超长文取「开头 + 结尾」，中段省略。
+#: 控制输入 token 的同时提高前缀缓存命中占比（system 段可命中，原文是不可命中部分）。
+_ANALYSIS_HEAD_CHARS = 2400
+_ANALYSIS_TAIL_CHARS = 1000
+_ELISION_MARK = "\n……（原文中段省略）……\n"
+
+#: 最近一次深读调用的缓存用量（run_analysis 汇总落盘）。
+_last_usage: dict[str, int] = {}
+
+
+def _trim_for_analysis(text: str, budget: int | None = None) -> str:
+    """把原文裁到分析预算内：短文原样，超长文保留开头与结尾（结论通常在尾段）。
+
+    预算与 prompt 缓存命中率直接相关：可命中前缀只有 system 提示那段，
+    正文越长分母越大。默认 2000 字符，可在 WebUI「设置」页用
+    analysis_article_chars 调整（越大越详实、命中率与费用越差）。
+    """
+    total = int(budget or _ANALYSIS_HEAD_CHARS + _ANALYSIS_TAIL_CHARS)
+    head = int(total * 0.68)
+    tail = max(200, total - head)
+    if len(text) <= head + tail:
+        return text
+    return text[:head] + _ELISION_MARK + text[-tail:]
 
 
 def _system_prompt(general: Any) -> str:
@@ -143,16 +168,49 @@ def _chat_completions_url(base_url: str) -> str:
     return base + "/chat/completions"
 
 
+def _record_usage(usage: dict[str, Any]) -> None:
+    """记录本次调用的前缀缓存命中/未命中（DeepSeek 的 prompt_cache_* 字段）。"""
+    hit = int(usage.get("prompt_cache_hit_tokens") or 0)
+    miss = int(usage.get("prompt_cache_miss_tokens") or 0)
+    prompt = int(usage.get("prompt_tokens") or (hit + miss))
+    _last_usage.clear()
+    _last_usage.update(
+        hit=hit,
+        miss=miss,
+        prompt=prompt,
+        completion=int(usage.get("completion_tokens") or 0),
+    )
+    if prompt:
+        logger.info(
+            f"深读 LLM 用量：prompt={prompt} 缓存命中={hit} 未命中={miss}（命中率 {hit / prompt:.0%}）"
+        )
+
+
 async def _chat(general: Any, user_prompt: str, style: str | None = None) -> str:
+    """单次深读调用。
+
+    system 段必须字节级稳定（内置规则 + 频道风格，不放任何按条变化的变量）：
+    服务端前缀缓存按「从头开始的公共前缀」命中，把腔调这类变量放进 system 会让
+    其后的内容全部算未命中。按条轮换的腔调因此挂在 user 段开头。
+    """
     url = _chat_completions_url(general.llm_base_url)
     headers = {"Authorization": f"Bearer {general.llm_api_key.strip()}"}
+    # 缓存要点：DeepSeek 等按「前缀完全一致」命中 prompt 缓存。
+    # 腔调原本拼在 system 末尾，导致每条新闻的 system 前缀都不同、缓存几乎全失效
+    # （实测命中率仅 29%）。把变量挪到 user 消息后，system 整段恒定，
+    # 可命中的前缀直接覆盖整段 system（含人设与规则）。
     system_content = _system_prompt(general)
+    user_content = user_prompt
     if style:
-        system_content += f"\n\n【本条腔调】{style}（只影响措辞和切入角度，事实与规矩不变）"
+        user_content = f"【本条腔调】{style}（只影响措辞和切入角度，事实与规矩不变）\n\n{user_prompt}"
     payload = {
         "model": general.llm_model,
         "temperature": _TEMPERATURE,
-        # 上限而非计费：推理模型（GLM/DeepSeek-R1 等）思考过程也计入，
+        # 思考型模型（deepseek-flash 等）默认先把预算烧在 reasoning 上：深读是
+        # 改写/结构化任务，思考链无价值却会成倍放大输出 tokens，默认关闭。
+        # 端点不认识该参数（400）时下方自动去参重试。
+        "thinking": {"type": "disabled"},
+        # 上限而非计费：部分推理模型思考过程也计入，
         # 预算不足会截断正文导致 JSON 不完整（默认 8000）
         "max_tokens": int(getattr(general, "llm_max_tokens", 8000) or 8000),
         # 强制 JSON 输出，根治 GLM 系模型偶发的代码围栏/引号漂移；
@@ -160,7 +218,7 @@ async def _chat(general: Any, user_prompt: str, style: str | None = None) -> str
         "response_format": {"type": "json_object"},
         "messages": [
             {"role": "system", "content": system_content},
-            {"role": "user", "content": user_prompt},
+            {"role": "user", "content": user_content},
         ],
     }
     import asyncio
@@ -173,6 +231,11 @@ async def _chat(general: Any, user_prompt: str, style: str | None = None) -> str
             if wait:
                 await asyncio.sleep(wait)
             resp = await client.post(url, json=payload, headers=headers)
+            if resp.status_code == 400 and "thinking" in payload:
+                # 端点/模型不认识 thinking：去掉参数重试（不再视为错误）
+                payload.pop("thinking")
+                logger.info("LLM 端点不支持 thinking 参数（400），去参重试")
+                continue
             if resp.status_code == 400 and "response_format" in payload:
                 # 端点/模型不支持 json_object 模式：去掉参数重试（不再视为错误）
                 payload.pop("response_format")
@@ -199,6 +262,7 @@ async def _chat(general: Any, user_prompt: str, style: str | None = None) -> str
                 )
             resp.raise_for_status()
             data = resp.json()
+            _record_usage(data.get("usage") or {})
             content = ((data.get("choices") or [{}])[0].get("message") or {}).get("content")
             if not content:
                 # 兼容推理模型把内容放在 reasoning_content 的返回结构
@@ -228,6 +292,7 @@ async def run_analysis(store: Store, count: int | None = None) -> list[Analysis]
     last_error = "无可用正文或全部调用失败"
     dice = list(_STYLE_DICE)
     random.shuffle(dice)
+    usage_totals = {"calls": 0, "hit": 0, "miss": 0, "prompt": 0}
     for idx, cand in enumerate(candidates):
         if len(results) >= n:
             break
@@ -257,9 +322,13 @@ async def run_analysis(store: Store, count: int | None = None) -> list[Analysis]
                 ana.article_chars = len(article)
                 content = await _chat(
                     general,
-                    f"新闻标题：{cand[2]}\n\n新闻原文：\n{article}",
+                    f"新闻标题：{cand[2]}\n\n新闻原文：\n"
+                    f"{_trim_for_analysis(article, getattr(general, 'analysis_article_chars', 2000))}",
                     style=style,
                 )
+                usage_totals["calls"] += 1
+                for key in ("hit", "miss", "prompt"):
+                    usage_totals[key] += _last_usage.get(key, 0)
                 data = _parse_llm_json(content)
             ana.event = data.get("event", "")
             ana.background = data.get("background", "")
@@ -274,6 +343,39 @@ async def run_analysis(store: Store, count: int | None = None) -> list[Analysis]
             logger.warning(f"新闻深读失败 [{cand[2][:20]}]: {e!r}")
             continue
         results.append(ana)
+    if usage_totals["calls"]:
+        _flush_usage_stats(store, usage_totals)
     if not results and candidates:
         raise RuntimeError(f"全部候选解析失败（{len(candidates)} 个）：{last_error}")
     return results
+
+
+def _flush_usage_stats(store: Store, totals: dict[str, int]) -> None:
+    """把本轮深读的缓存用量并入当日统计（cache/llm_cache_stats.json，保留最近 30 天）。"""
+    path = store.cache_dir / "llm_cache_stats.json"
+    try:
+        data = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+        if not isinstance(data, dict):
+            data = {}
+    except (OSError, json.JSONDecodeError):
+        data = {}
+    day = time.strftime("%Y-%m-%d")
+    rec = data.get(day) or {}
+    merged = {
+        "calls": int(rec.get("calls") or 0) + int(totals.get("calls") or 0),
+        "hit": int(rec.get("hit") or 0) + int(totals.get("hit") or 0),
+        "miss": int(rec.get("miss") or 0) + int(totals.get("miss") or 0),
+        "prompt": int(rec.get("prompt") or 0) + int(totals.get("prompt") or 0),
+    }
+    data = {**{k: v for k, v in data.items() if k != day}, day: merged}
+    for old in sorted(data)[:-30]:
+        data.pop(old, None)
+    try:
+        path.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
+    except OSError:
+        return
+    logger.info(
+        f"深读缓存用量（今日 {merged['calls']} 次调用）："
+        f"命中 {merged['hit']} / 未命中 {merged['miss']}"
+        f"（命中率 {merged['hit'] / max(1, merged['prompt']):.0%}）"
+    )
